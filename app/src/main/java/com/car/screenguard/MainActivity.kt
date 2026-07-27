@@ -1,0 +1,138 @@
+package com.car.screenguard
+
+import android.app.Activity
+import android.content.ComponentName
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.os.Bundle
+import android.provider.Settings
+import android.widget.Button
+import android.widget.CheckBox
+import android.widget.EditText
+import android.widget.TextView
+import android.widget.Toast
+
+/**
+ * 一般使用的主畫面：設定秒數、按開始使用，就這樣。
+ * 12 種關螢幕方法、掃描工具、細項設定與事件記錄都在 [DevActivity]。
+ */
+class MainActivity : Activity() {
+
+    private lateinit var status: TextView
+    private lateinit var editSec: EditText
+    private lateinit var checkRequireOff: CheckBox
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        Logx.init(this)
+        setContentView(R.layout.activity_simple)
+
+        status = findViewById(R.id.statusSimple)
+        editSec = findViewById(R.id.editSec)
+        editSec.setText((Prefs.getDelayMillis(this) / 1000).toString())
+
+        checkRequireOff = findViewById(R.id.checkRequireOff)
+        checkRequireOff.isChecked = Prefs.requireScreenOffFirst(this)
+        checkRequireOff.setOnCheckedChangeListener { _, c ->
+            Prefs.setRequireScreenOffFirst(this, c)
+            Logx.d("設定變更：必須先按過關閉螢幕 = $c")
+            updateStatus()
+        }
+
+        findViewById<Button>(R.id.btnStart).setOnClickListener { start() }
+
+        findViewById<Button>(R.id.btnDarkNow).setOnClickListener {
+            if (!ScreenOff.canDrawOverlay(this)) {
+                toast("需要「顯示在其他應用程式上層」權限才能變黑")
+                return@setOnClickListener
+            }
+            Logx.d("【手動】使用者按下立刻變黑")
+            ScreenOff.run(this, LockMethod.BLACK_OVERLAY) { r ->
+                if (!r.ok) toast("變黑失敗：${r.msg}")
+            }
+        }
+
+        findViewById<Button>(R.id.btnStop).setOnClickListener {
+            Prefs.setEnabled(this, false)
+            ScreenGuardService.instance?.cancel("使用者按停止")
+            BlackOverlay.hide(applicationContext)
+            Logx.d("=== 使用者按下停止 ===")
+            toast("已停止")
+            updateStatus()
+        }
+
+        findViewById<Button>(R.id.btnDev).setOnClickListener {
+            startActivity(Intent(this, DevActivity::class.java))
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        updateStatus()
+    }
+
+    private fun start() {
+        val sec = editSec.text.toString().toLongOrNull()
+        if (sec == null || sec < 1) {
+            toast("請輸入至少 1 秒")
+            return
+        }
+
+        // 缺哪個權限就直接把使用者帶到那一頁，不要只丟訊息
+        if (!isAccessibilityEnabled()) {
+            toast("請在清單裡找到「車機螢幕守衛」並開啟，然後回到這裡再按一次開始使用")
+            runCatching { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
+            return
+        }
+        if (!ScreenOff.canDrawOverlay(this)) {
+            toast("請允許「顯示在其他應用程式上層」，然後回到這裡再按一次開始使用")
+            if (Build.VERSION.SDK_INT >= 23) {
+                runCatching {
+                    startActivity(
+                        Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName"))
+                    )
+                }
+            }
+            return
+        }
+
+        Prefs.setDelayMillis(this, sec * 1000)
+        Prefs.applyOfficialProfile(this)
+        // 正式方案會把這項設成預設值，所以在後面照使用者勾選的狀態覆寫回去
+        Prefs.setRequireScreenOffFirst(this, checkRequireOff.isChecked)
+        Logx.d("=== 開始使用：$sec 秒、方法 J 黑幕、音量條 ${Prefs.volumeEventPkg(this)}/${Prefs.volumeEventCls(this)} ===")
+        toast("已開始使用，可以關掉 App 了")
+        updateStatus()
+    }
+
+    private fun updateStatus() {
+        val acc = isAccessibilityEnabled()
+        val overlay = ScreenOff.canDrawOverlay(this)
+        val on = Prefs.enabled(this)
+        val sec = Prefs.getDelayMillis(this) / 1000
+        val gate = Prefs.requireScreenOffFirst(this)
+        val screenState = ScreenGuardService.instance?.screenStateText() ?: "未知"
+        status.text = when {
+            !acc -> "❌ 尚未啟用無障礙服務\n按「開始使用」我會帶你去開"
+            !overlay -> "❌ 尚未允許顯示在其他 App 上層\n按「開始使用」我會帶你去開"
+            !on -> "⏸ 已停止\n按「開始使用」重新啟用"
+            else -> buildString {
+                append("✅ 運作中\n")
+                append(if (gate) "螢幕原本關閉、被音量喚醒後" else "調整音量後")
+                append(" $sec 秒沒有其他操作就變黑；\n碰到螢幕就取消，黑幕點一下就解除。")
+                append("\n\nAndroid 看到的螢幕狀態：").append(screenState)
+            }
+        }
+    }
+
+    private fun isAccessibilityEnabled(): Boolean {
+        val expected = ComponentName(this, ScreenGuardService::class.java).flattenToString()
+        val enabled = Settings.Secure.getString(
+            contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+        ) ?: return false
+        return enabled.split(':').any { it.equals(expected, ignoreCase = true) }
+    }
+
+    private fun toast(msg: String) = Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
+}

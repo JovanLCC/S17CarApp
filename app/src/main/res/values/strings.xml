@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">車機螢幕守衛</string>
+    <string name="accessibility_description">偵測音量調整與螢幕操作，於閒置後自動關閉螢幕，讓行車時保持黑暗。</string>
+</resources>

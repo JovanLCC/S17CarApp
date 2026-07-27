@@ -1,0 +1,23 @@
+# Gradle / build
+.gradle/
+build/
+app/build/
+# Android Studio 匯出簽章 APK 的預設輸出，不進版控（根目錄的 ScreenGuard.apk 才是要發布的那份）
+app/release/
+captures/
+*.log
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+.cxx/
+
+# 本機路徑，不該進版控（每台電腦的 SDK 位置不同）
+local.properties
+
+# 簽章檔
+*.jks
+*.keystore
+
+# 編好的 APK 不進版控，要發布時用 GitHub Releases
+*.apk

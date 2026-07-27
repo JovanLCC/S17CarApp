@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="24dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="車機螢幕守衛"
+            android:textSize="26sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:textSize="15sp"
+            android:text="調整音量後，若沒有其他操作，就把螢幕變黑。中途碰到螢幕就不會變黑。" />
+
+        <TextView
+            android:id="@+id/statusSimple"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:padding="12dp"
+            android:background="#11000000"
+            android:textSize="17sp"
+            android:text="狀態載入中…" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="幾秒後變黑："
+                android:textSize="19sp" />
+
+            <EditText
+                android:id="@+id/editSec"
+                android:layout_width="90dp"
+                android:layout_height="wrap_content"
+                android:inputType="number"
+                android:singleLine="true"
+                android:textSize="19sp"
+                android:text="5" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="秒"
+                android:textSize="19sp" />
+        </LinearLayout>
+
+        <CheckBox
+            android:id="@+id/checkRequireOff"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="只有「調音量前螢幕是關閉的」才變黑"
+            android:textSize="17sp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:textSize="13sp"
+            android:text="預設不勾（＝調音量就變黑）。勾選後只有螢幕原本關閉、被音量鍵喚醒那一次才蓋黑幕，看地圖時調音量不會有動作。注意：這台車機按關閉螢幕只是切背光，Android 看不到，所以要先在「開發者設定 → ④ 進階觸發」填好關閉螢幕按鈕的事件特徵，這個勾選才有意義。" />
+
+        <Button
+            android:id="@+id/btnDarkNow"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:padding="12dp"
+            android:text="立刻變黑（進入暗模式）"
+            android:textSize="17sp" />
+
+        <Button
+            android:id="@+id/btnStart"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:padding="18dp"
+            android:text="開始使用"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
+        <Button
+            android:id="@+id/btnStop"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:padding="10dp"
+            android:text="停止"
+            android:textSize="16sp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:textSize="13sp"
+            android:text="開始使用後就可以關掉這個 App，它會在背景繼續運作。" />
+
+        <Button
+            android:id="@+id/btnDev"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:text="開發者設定"
+            android:textSize="13sp" />
+
+    </LinearLayout>
+</ScrollView>

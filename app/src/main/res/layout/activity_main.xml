@@ -1,0 +1,326 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="車機螢幕守衛"
+            android:textSize="22sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/statusText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:textSize="14sp"
+            android:text="狀態載入中…" />
+
+        <!-- ================= 一鍵正式啟用 ================= -->
+        <Button
+            android:id="@+id/btnOfficial"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:padding="14dp"
+            android:text="✅ 正式啟用（套用車機實測方案）"
+            android:textSize="17sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/officialText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="13sp"
+            android:text="按下去＝方法 J 黑幕 + 只認車機音量條 + 5 秒 + 其他操作取消，之後關掉 App 就會在背景運作。" />
+
+        <!-- ================= 權限 ================= -->
+        <TextView
+            style="@style/SectionTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="① 權限（測試前先開）" />
+
+        <Button
+            android:id="@+id/btnAccessibility"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="開啟無障礙設定（啟用本服務）" />
+
+        <Button
+            android:id="@+id/btnAdmin"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="啟用裝置管理員（方法 B 需要）" />
+
+        <Button
+            android:id="@+id/btnOverlayPerm"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="允許顯示在其他 App 上層（方法 J 需要）" />
+
+        <Button
+            android:id="@+id/btnWritePerm"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="允許修改系統設定（方法 H / I 需要）" />
+
+        <!-- ================= 關螢幕方法測試 ================= -->
+        <TextView
+            style="@style/SectionTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="② 一個一個試，看哪個能把螢幕關掉" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="13sp"
+            android:text="按下後螢幕若立刻變黑＝這個方法可用。醒來後看最下面的記錄區，會寫每個方法的回傳結果。" />
+
+        <LinearLayout
+            android:id="@+id/containerTests"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:orientation="vertical" />
+
+        <EditText
+            android:id="@+id/editAction"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:hint="自訂廣播 action（方法 K 用）"
+            android:inputType="textNoSuggestions"
+            android:singleLine="true" />
+
+        <Button
+            android:id="@+id/btnScan"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="自動掃描常見車機關螢幕廣播（約 40 秒）" />
+
+        <Button
+            android:id="@+id/btnDiscover"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="掃描車機內含 screen / backlight 的系統元件" />
+
+        <Button
+            android:id="@+id/btnRestore"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="還原被改掉的亮度／休眠逾時" />
+
+        <!-- ================= 正式行為設定 ================= -->
+        <TextView
+            style="@style/SectionTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="③ 正式行為設定" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="正式關螢幕要用哪個方法："
+            android:textSize="14sp" />
+
+        <Spinner
+            android:id="@+id/spinnerMethod"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="沒有操作幾秒後關螢幕："
+                android:textSize="15sp" />
+            <EditText
+                android:id="@+id/editDelay"
+                android:layout_width="70dp"
+                android:layout_height="wrap_content"
+                android:inputType="number"
+                android:singleLine="true"
+                android:text="5" />
+            <Button
+                android:id="@+id/btnSave"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="儲存" />
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="倒數中若有其他操作："
+            android:textSize="15sp" />
+
+        <RadioGroup
+            android:id="@+id/rgOtherOp"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+            <RadioButton
+                android:id="@+id/radioCancel"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="取消，這次就不關螢幕" />
+            <RadioButton
+                android:id="@+id/radioReset"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="重新計時，停手後再關" />
+        </RadioGroup>
+
+        <LinearLayout
+            android:id="@+id/containerSwitches"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
+
+        <Button
+            android:id="@+id/btnSimulate"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="模擬一次：現在開始倒數，用選定方法關螢幕" />
+
+        <!-- ================= 進階觸發 ================= -->
+        <TextView
+            style="@style/SectionTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="④ 進階觸發（看完記錄再填）" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="13sp"
+            android:text="這台車機的方向盤音量沒有走 Android 音量。打開診斷模式後按幾下方向盤音量鍵，看記錄裡有什麼東西跟著動，再把它填到下面兩格，App 就會拿它當音量訊號。" />
+
+        <EditText
+            android:id="@+id/editVolEventPkg"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="音量條所屬套件（實測 com.ts.MainUI）"
+            android:inputType="textNoSuggestions"
+            android:singleLine="true" />
+
+        <EditText
+            android:id="@+id/editVolEventCls"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="音量條的 class 關鍵字（實測 SeekBar）"
+            android:inputType="textNoSuggestions"
+            android:singleLine="true" />
+
+        <EditText
+            android:id="@+id/editOffEventPkg"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="「關閉螢幕」按鈕所屬套件（留空＝不用）"
+            android:inputType="textNoSuggestions"
+            android:singleLine="true" />
+
+        <EditText
+            android:id="@+id/editOffEventCls"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="「關閉螢幕」按鈕的 class 關鍵字"
+            android:inputType="textNoSuggestions"
+            android:singleLine="true" />
+
+        <EditText
+            android:id="@+id/editVolKeys"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="系統設定鍵含這些字就算音量（逗號分隔）"
+            android:inputType="textNoSuggestions"
+            android:singleLine="true" />
+
+        <EditText
+            android:id="@+id/editVolWindows"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="出現這些視窗/套件就算音量（逗號分隔）"
+            android:inputType="textNoSuggestions"
+            android:singleLine="true" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+            <Button
+                android:id="@+id/btnSaveAdvanced"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:text="儲存觸發設定" />
+            <Button
+                android:id="@+id/btnVolumeDump"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:text="印出目前音量值" />
+        </LinearLayout>
+
+        <!-- ================= 記錄 ================= -->
+        <TextView
+            style="@style/SectionTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="⑤ 事件記錄（最新在最上面）" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+            <Button
+                android:id="@+id/btnRefreshLog"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:text="重新整理" />
+            <Button
+                android:id="@+id/btnCopyLog"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:text="複製" />
+            <Button
+                android:id="@+id/btnClearLog"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:text="清除" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/logText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:background="#11000000"
+            android:fontFamily="monospace"
+            android:padding="8dp"
+            android:textIsSelectable="true"
+            android:textSize="12sp"
+            android:text="（尚無記錄）" />
+
+    </LinearLayout>
+</ScrollView>

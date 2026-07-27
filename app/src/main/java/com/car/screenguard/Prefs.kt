@@ -1,0 +1,171 @@
+package com.car.screenguard
+
+import android.content.Context
+
+/** 使用者設定的儲存工具。 */
+object Prefs {
+    private const val P = "screenguard_prefs"
+
+    private const val KEY_ENABLED = "enabled"
+    private const val KEY_TRIGGER_VOLUME = "trigger_volume"
+    private const val KEY_TRIGGER_SCREEN_ON = "trigger_screen_on"
+    private const val KEY_POLL_VOLUME = "poll_volume"
+    private const val KEY_DELAY = "delay_ms"
+    private const val KEY_METHOD = "lock_method"
+    private const val KEY_OTHER_OP_CANCELS = "other_op_cancels"
+    private const val KEY_TOAST = "show_toast"
+    private const val KEY_CUSTOM_ACTION = "custom_action"
+    private const val KEY_SAVED_TIMEOUT = "saved_timeout"
+    private const val KEY_SAVED_BRIGHTNESS = "saved_brightness"
+    private const val KEY_SAVED_BRIGHTNESS_MODE = "saved_brightness_mode"
+    private const val KEY_DIAGNOSTIC = "diagnostic"
+    private const val KEY_AUTO_REDARK = "auto_redark"
+    private const val KEY_VOL_SETTING_KEYS = "vol_setting_keys"
+    private const val KEY_VOL_WINDOW_PKGS = "vol_window_pkgs"
+    private const val KEY_VOL_EVENT_PKG = "vol_event_pkg"
+    private const val KEY_VOL_EVENT_CLS = "vol_event_cls"
+    private const val KEY_REASSERT = "reassert_on_volume"
+    private const val KEY_REQUIRE_SCREEN_OFF = "require_screen_off_first"
+    private const val KEY_OFF_EVENT_PKG = "off_event_pkg"
+    private const val KEY_OFF_EVENT_CLS = "off_event_cls"
+
+    private fun sp(c: Context) = c.getSharedPreferences(P, Context.MODE_PRIVATE)
+
+    /** 總開關：關掉後只剩測試按鈕可用，服務不會自動關螢幕。 */
+    fun enabled(c: Context) = sp(c).getBoolean(KEY_ENABLED, true)
+    fun setEnabled(c: Context, v: Boolean) = sp(c).edit().putBoolean(KEY_ENABLED, v).apply()
+
+    /** 調整音量後啟動倒數（預設開啟，這是主要需求）。 */
+    fun triggerVolume(c: Context) = sp(c).getBoolean(KEY_TRIGGER_VOLUME, true)
+    fun setTriggerVolume(c: Context, v: Boolean) = sp(c).edit().putBoolean(KEY_TRIGGER_VOLUME, v).apply()
+
+    /** 螢幕亮起就啟動倒數。JHY S17 抓不到音量事件，所以這台預設要開。 */
+    fun triggerScreenOn(c: Context) = sp(c).getBoolean(KEY_TRIGGER_SCREEN_ON, true)
+    fun setTriggerScreenOn(c: Context, v: Boolean) = sp(c).edit().putBoolean(KEY_TRIGGER_SCREEN_ON, v).apply()
+
+    /** 輪詢音量值（車機音量走 MCU、不送廣播時的救命稻草，預設開啟）。 */
+    fun pollVolume(c: Context) = sp(c).getBoolean(KEY_POLL_VOLUME, true)
+    fun setPollVolume(c: Context, v: Boolean) = sp(c).edit().putBoolean(KEY_POLL_VOLUME, v).apply()
+
+    /** 倒數毫秒數（預設 5000 = 5 秒）。 */
+    fun getDelayMillis(c: Context) = sp(c).getLong(KEY_DELAY, 5000L)
+    fun setDelayMillis(c: Context, v: Long) = sp(c).edit().putLong(KEY_DELAY, v).apply()
+
+    /**
+     * 正式關螢幕要用哪一個方法。
+     * 預設 J（全黑覆蓋層）：實測 JHY S17 上 A/B 會真的斷電關螢幕，
+     * 那正是「按音量會被喚醒」的原始狀態，只有假關螢幕能解決這題。
+     */
+    fun method(c: Context): LockMethod {
+        val name = sp(c).getString(KEY_METHOD, LockMethod.BLACK_OVERLAY.name)
+        return runCatching { LockMethod.valueOf(name!!) }.getOrDefault(LockMethod.BLACK_OVERLAY)
+    }
+    fun setMethod(c: Context, m: LockMethod) = sp(c).edit().putString(KEY_METHOD, m.name).apply()
+
+    /** true=其他操作直接取消本次關螢幕；false=其他操作只是把 5 秒重新計時。 */
+    fun otherOpCancels(c: Context) = sp(c).getBoolean(KEY_OTHER_OP_CANCELS, true)
+    fun setOtherOpCancels(c: Context, v: Boolean) = sp(c).edit().putBoolean(KEY_OTHER_OP_CANCELS, v).apply()
+
+    /** 倒數開始時跳提示（除錯用，夜間開車建議關）。 */
+    fun showToast(c: Context) = sp(c).getBoolean(KEY_TOAST, false)
+    fun setShowToast(c: Context, v: Boolean) = sp(c).edit().putBoolean(KEY_TOAST, v).apply()
+
+    /**
+     * 只有「調音量前螢幕是關閉的」才變黑。
+     *
+     * 預設關閉：JHY S17 實測按關閉螢幕只是切背光，Android 收不到 ACTION_SCREEN_OFF，
+     * 全程都認為螢幕是亮的，這個條件在這台永遠不成立。要用的話得先在開發者頁
+     * 填好「關閉螢幕按鈕」的畫面事件特徵（見 [screenOffEventPkg]）。
+     */
+    fun requireScreenOffFirst(c: Context) = sp(c).getBoolean(KEY_REQUIRE_SCREEN_OFF, false)
+    fun setRequireScreenOffFirst(c: Context, v: Boolean) =
+        sp(c).edit().putBoolean(KEY_REQUIRE_SCREEN_OFF, v).apply()
+
+    /**
+     * 車機「關閉螢幕」按鈕的畫面事件特徵。
+     *
+     * 這台車機切背光時 Android 收不到 ACTION_SCREEN_OFF，所以改用同一套辦法：
+     * 開診斷模式按一次關閉螢幕，從記錄找出那個事件的 pkg / class 填進來，
+     * 之後看到這個事件就當成「使用者要暗了」（進入暗模式）。留空＝不啟用。
+     */
+    fun screenOffEventPkg(c: Context): String = sp(c).getString(KEY_OFF_EVENT_PKG, "") ?: ""
+    fun setScreenOffEventPkg(c: Context, v: String) = sp(c).edit().putString(KEY_OFF_EVENT_PKG, v).apply()
+    fun screenOffEventCls(c: Context): String = sp(c).getString(KEY_OFF_EVENT_CLS, "") ?: ""
+    fun setScreenOffEventCls(c: Context, v: String) = sp(c).edit().putString(KEY_OFF_EVENT_CLS, v).apply()
+
+    /** 黑幕開著又調音量時，把黑幕重貼回最上層蓋掉車機音量條（會閃一下，預設關）。 */
+    fun reassertOnVolume(c: Context) = sp(c).getBoolean(KEY_REASSERT, false)
+    fun setReassertOnVolume(c: Context, v: Boolean) = sp(c).edit().putBoolean(KEY_REASSERT, v).apply()
+
+    /** 診斷模式：把所有畫面事件、按鍵、系統設定變化通通記下來，用來找出車機的音量訊號。 */
+    fun diagnostic(c: Context) = sp(c).getBoolean(KEY_DIAGNOSTIC, true)
+    fun setDiagnostic(c: Context, v: Boolean) = sp(c).edit().putBoolean(KEY_DIAGNOSTIC, v).apply()
+
+    /** 黑幕被點掉之後，沒操作再過幾秒就自動變回黑幕。 */
+    fun autoRedark(c: Context) = sp(c).getBoolean(KEY_AUTO_REDARK, true)
+    fun setAutoRedark(c: Context, v: Boolean) = sp(c).edit().putBoolean(KEY_AUTO_REDARK, v).apply()
+
+    /** 哪些系統設定鍵的變化要當成「音量事件」（逗號分隔，比對子字串）。 */
+    fun volumeSettingKeys(c: Context): List<String> =
+        (sp(c).getString(KEY_VOL_SETTING_KEYS, "volume") ?: "")
+            .split(",").map { it.trim() }.filter { it.isNotEmpty() }
+    fun volumeSettingKeysRaw(c: Context): String = sp(c).getString(KEY_VOL_SETTING_KEYS, "volume") ?: ""
+    fun setVolumeSettingKeys(c: Context, v: String) = sp(c).edit().putString(KEY_VOL_SETTING_KEYS, v).apply()
+
+    /** 哪些視窗／套件出現要當成「音量事件」（例如車機自己的音量條，逗號分隔）。 */
+    fun volumeWindowPkgs(c: Context): List<String> =
+        (sp(c).getString(KEY_VOL_WINDOW_PKGS, "") ?: "")
+            .split(",").map { it.trim() }.filter { it.isNotEmpty() }
+    fun volumeWindowPkgsRaw(c: Context): String = sp(c).getString(KEY_VOL_WINDOW_PKGS, "") ?: ""
+    fun setVolumeWindowPkgs(c: Context, v: String) = sp(c).edit().putString(KEY_VOL_WINDOW_PKGS, v).apply()
+
+    /**
+     * 車機音量條的畫面事件特徵。JHY S17 實測：pkg=com.ts.MainUI、class=SeekBar。
+     * 兩個條件同時符合才算音量事件，避免把同一支 App 的其他操作也誤判成音量。
+     */
+    fun volumeEventPkg(c: Context): String = sp(c).getString(KEY_VOL_EVENT_PKG, "com.ts.MainUI") ?: ""
+    fun setVolumeEventPkg(c: Context, v: String) = sp(c).edit().putString(KEY_VOL_EVENT_PKG, v).apply()
+    fun volumeEventCls(c: Context): String = sp(c).getString(KEY_VOL_EVENT_CLS, "SeekBar") ?: ""
+    fun setVolumeEventCls(c: Context, v: String) = sp(c).edit().putString(KEY_VOL_EVENT_CLS, v).apply()
+
+    /**
+     * 一鍵套用車機實測出來的正式方案。
+     * 方法 J（假關螢幕）＋ 只靠音量條事件觸發 ＋ 其他操作取消 ＋ 關掉診斷與輪詢。
+     */
+    fun applyOfficialProfile(c: Context) {
+        sp(c).edit()
+            .putBoolean(KEY_ENABLED, true)
+            .putString(KEY_METHOD, LockMethod.BLACK_OVERLAY.name)
+            .putBoolean(KEY_TRIGGER_VOLUME, true)
+            .putBoolean(KEY_TRIGGER_SCREEN_ON, false)   // 已經抓得到音量，不需要這條備援
+            .putBoolean(KEY_POLL_VOLUME, false)         // 這台音量不走 AudioManager，輪詢是白工
+            .putBoolean(KEY_OTHER_OP_CANCELS, true)
+            .putBoolean(KEY_AUTO_REDARK, false)         // 點掉黑幕後就讓你用，下次按音量再黑
+            .putBoolean(KEY_DIAGNOSTIC, false)
+            .putBoolean(KEY_TOAST, false)
+            // 這台車機的關閉螢幕 Android 看不到，所以正式方案不開這個條件
+            .putBoolean(KEY_REQUIRE_SCREEN_OFF, false)
+            .putString(KEY_VOL_EVENT_PKG, "com.ts.MainUI")
+            .putString(KEY_VOL_EVENT_CLS, "SeekBar")
+            .apply()
+        if (sp(c).getLong(KEY_DELAY, 0L) <= 0L) setDelayMillis(c, 5000L)
+    }
+
+    /** 目前設定是不是就是正式方案。 */
+    fun isOfficialProfile(c: Context): Boolean =
+        enabled(c) && method(c) == LockMethod.BLACK_OVERLAY && triggerVolume(c) &&
+            !triggerScreenOn(c) && !diagnostic(c) &&
+            volumeEventPkg(c).isNotEmpty() && volumeEventCls(c).isNotEmpty()
+
+    /** 自訂廣播 action。 */
+    fun customAction(c: Context): String = sp(c).getString(KEY_CUSTOM_ACTION, "") ?: ""
+    fun setCustomAction(c: Context, v: String) = sp(c).edit().putString(KEY_CUSTOM_ACTION, v).apply()
+
+    // === 方法 H / I 會改系統設定，這裡記住原值以便還原 ===
+    fun savedTimeout(c: Context) = sp(c).getInt(KEY_SAVED_TIMEOUT, -1)
+    fun setSavedTimeout(c: Context, v: Int) = sp(c).edit().putInt(KEY_SAVED_TIMEOUT, v).apply()
+    fun savedBrightness(c: Context) = sp(c).getInt(KEY_SAVED_BRIGHTNESS, -1)
+    fun setSavedBrightness(c: Context, v: Int) = sp(c).edit().putInt(KEY_SAVED_BRIGHTNESS, v).apply()
+    fun savedBrightnessMode(c: Context) = sp(c).getInt(KEY_SAVED_BRIGHTNESS_MODE, -1)
+    fun setSavedBrightnessMode(c: Context, v: Int) = sp(c).edit().putInt(KEY_SAVED_BRIGHTNESS_MODE, v).apply()
+}
