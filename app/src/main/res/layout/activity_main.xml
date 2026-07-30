@@ -102,6 +102,21 @@
             android:inputType="textNoSuggestions"
             android:singleLine="true" />
 
+        <EditText
+            android:id="@+id/editClickKeys"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:hint="方法 M 要點的按鈕關鍵字（逗號分隔）"
+            android:inputType="textNoSuggestions"
+            android:singleLine="true" />
+
+        <Button
+            android:id="@+id/btnDump"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="5 秒後傾印畫面節點（切到車機畫面）" />
+
         <Button
             android:id="@+id/btnScan"
             android:layout_width="match_parent"

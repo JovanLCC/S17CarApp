@@ -14,6 +14,7 @@ import android.os.SystemClock
 import android.provider.Settings
 import android.view.KeyEvent
 import android.view.accessibility.AccessibilityEvent
+import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.Toast
 
 /**
@@ -425,6 +426,100 @@ class ScreenGuardService : AccessibilityService() {
             snapshotVolumes()
             onVolumeChanged("$source $changed")
         }
+    }
+
+    // === 直接去按車機自己的「關閉螢幕」按鈕 ===
+    //
+    // 這台車機：真正關螢幕（A/B）會讓系統睡著、音樂導航中斷；系統亮度設定被 ROM 忽略；
+    // 又沒有 root 可以寫背光節點。唯一能真正關背光又不中斷播放的，就是車機原廠那顆按鈕，
+    // 所以改成用無障礙去點它 —— 跟人手按下去走同一條路。
+
+    /** 找出符合關鍵字的節點並點下去。 */
+    fun clickScreenOffButton(): LockResult {
+        val keys = Prefs.clickKeys(this)
+        if (keys.isEmpty()) return LockResult(false, "沒有設定按鈕關鍵字")
+
+        val roots = mutableListOf<AccessibilityNodeInfo>()
+        runCatching { rootInActiveWindow }.getOrNull()?.let { roots.add(it) }
+        runCatching { windows.mapNotNull { w -> w.root } }.getOrNull()?.let { roots.addAll(it) }
+        if (roots.isEmpty()) return LockResult(false, "讀不到畫面內容（無障礙權限可能沒給完整）")
+
+        for (root in roots) {
+            val hit = findNode(root, keys, 0) ?: continue
+            val target = clickableSelfOrParent(hit) ?: hit
+            val ok = runCatching { target.performAction(AccessibilityNodeInfo.ACTION_CLICK) }.getOrDefault(false)
+            val desc = describe(hit)
+            if (ok) return LockResult(true, "已點擊 $desc")
+            Logx.d("找到 $desc 但點不動，繼續找")
+        }
+        return LockResult(false, "畫面上找不到可點的「${keys.joinToString("／")}」")
+    }
+
+    private fun findNode(node: AccessibilityNodeInfo?, keys: List<String>, depth: Int): AccessibilityNodeInfo? {
+        node ?: return null
+        if (depth > 25) return null
+        val hay = listOfNotNull(
+            node.text?.toString(),
+            node.contentDescription?.toString(),
+            node.viewIdResourceName
+        ).joinToString(" ")
+        if (hay.isNotEmpty() && keys.any { hay.contains(it, true) }) return node
+        for (i in 0 until node.childCount) {
+            findNode(runCatching { node.getChild(i) }.getOrNull(), keys, depth + 1)?.let { return it }
+        }
+        return null
+    }
+
+    private fun clickableSelfOrParent(node: AccessibilityNodeInfo): AccessibilityNodeInfo? {
+        var n: AccessibilityNodeInfo? = node
+        var up = 0
+        while (n != null && up < 6) {
+            if (n.isClickable) return n
+            n = runCatching { n?.parent }.getOrNull()
+            up++
+        }
+        return null
+    }
+
+    private fun describe(n: AccessibilityNodeInfo): String =
+        "${n.className?.toString()?.substringAfterLast('.')}" +
+            "[text=${n.text}, desc=${n.contentDescription}, id=${n.viewIdResourceName?.substringAfterLast('/')}]"
+
+    /**
+     * 把目前畫面上的節點全部倒進記錄，用來找出「關閉螢幕」按鈕的實際文字／id。
+     * 由設定頁延遲幾秒後呼叫，中間讓使用者切到車機的畫面。
+     */
+    fun dumpNodes(): Int {
+        var count = 0
+        fun walk(n: AccessibilityNodeInfo?, depth: Int) {
+            n ?: return
+            if (count >= 200) return
+            val t = n.text?.toString().orEmpty()
+            val d = n.contentDescription?.toString().orEmpty()
+            val id = n.viewIdResourceName?.substringAfterLast('/').orEmpty()
+            if (t.isNotEmpty() || d.isNotEmpty() || id.isNotEmpty() || n.isClickable) {
+                count++
+                Logx.d(
+                    "[節點]${" ".repeat(depth.coerceAtMost(8))}" +
+                        "${n.className?.toString()?.substringAfterLast('.')} " +
+                        "text=$t desc=$d id=$id click=${n.isClickable}"
+                )
+            }
+            for (i in 0 until n.childCount) walk(runCatching { n.getChild(i) }.getOrNull(), depth + 1)
+        }
+
+        Logx.d("=== 開始傾印畫面節點 ===")
+        runCatching { rootInActiveWindow }.getOrNull()?.let {
+            Logx.d("[節點] -- 目前視窗 ${it.packageName} --")
+            walk(it, 0)
+        }
+        runCatching { windows }.getOrNull()?.forEach { w ->
+            val r = runCatching { w.root }.getOrNull() ?: return@forEach
+            Logx.d("[節點] -- 視窗 ${r.packageName} type=${w.type} --")
+            walk(r, 0)
+        }
+        Logx.d("=== 傾印結束，共 $count 個節點${if (count >= 200) "（已達上限，可能還有更多）" else ""} ===")
+        return count
     }
 
     /** 設定頁「現在的音量值」用，方便人工核對車機有沒有動到 Android 音量。 */

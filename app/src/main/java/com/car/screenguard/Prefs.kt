@@ -26,6 +26,8 @@ object Prefs {
     private const val KEY_VOL_EVENT_CLS = "vol_event_cls"
     private const val KEY_REASSERT = "reassert_on_volume"
     private const val KEY_REQUIRE_SCREEN_OFF = "require_screen_off_first"
+    private const val KEY_CLICK_KEYS = "click_keys"
+    private const val DEFAULT_CLICK_KEYS = "關閉螢幕,關螢幕,螢幕關閉,黑屏,息屏,熄屏,關屏,screenoff,screen_off,screen off"
     private const val KEY_OVERLAY_BRIGHTNESS = "overlay_brightness"
     private const val KEY_DIM_SYSTEM = "dim_system"
     private const val KEY_OFF_EVENT_PKG = "off_event_pkg"
@@ -92,6 +94,16 @@ object Prefs {
     fun overlayBrightness(c: Context) = sp(c).getInt(KEY_OVERLAY_BRIGHTNESS, 0)
     fun setOverlayBrightness(c: Context, v: Int) =
         sp(c).edit().putInt(KEY_OVERLAY_BRIGHTNESS, v.coerceIn(0, 1000)).apply()
+
+    /**
+     * 方法 M 要點的按鈕關鍵字（比對文字／說明／viewId，逗號分隔）。
+     * 用開發者頁的「傾印畫面節點」找出車機那顆關閉螢幕按鈕實際長什麼樣，再填進來。
+     */
+    fun clickKeys(c: Context): List<String> =
+        (sp(c).getString(KEY_CLICK_KEYS, DEFAULT_CLICK_KEYS) ?: "")
+            .split(",").map { it.trim() }.filter { it.isNotEmpty() }
+    fun clickKeysRaw(c: Context): String = sp(c).getString(KEY_CLICK_KEYS, DEFAULT_CLICK_KEYS) ?: ""
+    fun setClickKeys(c: Context, v: String) = sp(c).edit().putString(KEY_CLICK_KEYS, v).apply()
 
     /** 蓋黑幕時連系統亮度一起壓到 0（需要「修改系統設定」權限），解除時還原。 */
     fun dimSystem(c: Context) = sp(c).getBoolean(KEY_DIM_SYSTEM, true)

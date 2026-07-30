@@ -155,6 +155,26 @@ class DevActivity : Activity() {
 
         editAction.setText(Prefs.customAction(this))
 
+        val editClickKeys = findViewById<EditText>(R.id.editClickKeys)
+        editClickKeys.setText(Prefs.clickKeysRaw(this))
+        editClickKeys.setOnFocusChangeListener { _, hasFocus ->
+            if (!hasFocus) Prefs.setClickKeys(this, editClickKeys.text.toString())
+        }
+
+        findViewById<Button>(R.id.btnDump).setOnClickListener {
+            Prefs.setClickKeys(this, editClickKeys.text.toString())
+            val svc = ScreenGuardService.instance
+            if (svc == null) {
+                toast("請先啟用無障礙服務")
+            } else {
+                toast("5 秒後傾印，請馬上切到車機那個有關閉螢幕按鈕的畫面")
+                android.os.Handler(mainLooper).postDelayed({
+                    val n = svc.dumpNodes()
+                    Logx.d("傾印完成，$n 個節點；回 App 看記錄找那顆按鈕")
+                }, 5000)
+            }
+        }
+
         findViewById<Button>(R.id.btnScan).setOnClickListener {
             toast("開始掃描，過程中請不要碰螢幕")
             ScreenOff.scanPresetBroadcasts(this) { summary -> toast(summary) }
