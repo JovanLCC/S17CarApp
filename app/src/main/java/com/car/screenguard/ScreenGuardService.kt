@@ -55,6 +55,7 @@ class ScreenGuardService : AccessibilityService() {
     private var volumeSnapshot = mapOf<Int, Int>()
     private var lastWindowsAt = 0L
     private val lastSettingAt = HashMap<String, Long>()
+    private val lastLogAllAt = HashMap<String, Long>()
 
     /** 這些 App 的畫面變化不算「使用者操作」（例如調音量時跳出來的音量條）。 */
     private val ignoredPackages = setOf(
@@ -150,13 +151,17 @@ class ScreenGuardService : AccessibilityService() {
         }
         BlackOverlay.onDismissed = { onOverlayDismissed() }
         BlackOverlay.onShown = { setDarkMode(true, "黑幕已蓋上") }
-        TouchWatcher.onTouch = { onUserActivity("觸控螢幕") }
+        TouchWatcher.onTouch = {
+            if (Prefs.logEverything(this)) Logx.d("[全] 觸控螢幕")
+            onUserActivity("觸控螢幕")
+        }
         lastScreenOnAt = SystemClock.uptimeMillis()
         runCatching {
             val pm = getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
             screenOn = pm.isInteractive
         }
         handler.post(pollRunnable)
+        refreshEventMask()
         Logx.d(
             "=== 服務已連線，方法=${Prefs.method(this).code}，延遲=${Prefs.getDelayMillis(this) / 1000}秒" +
                 "，診斷=${if (Prefs.diagnostic(this)) "開" else "關"} ==="
@@ -187,6 +192,16 @@ class ScreenGuardService : AccessibilityService() {
         event ?: return
         val pkg = event.packageName?.toString() ?: ""
         val type = event.eventType
+
+        // 全事件模式：連平常沒訂閱的類型也一起記，用來確認某個動作是不是真的沒有任何事件
+        if (Prefs.logEverything(this) && logAllThrottle(type, pkg)) {
+            val v = if (event.itemCount > 0) " 值=${event.currentItemIndex}/${event.itemCount}" else ""
+            Logx.d(
+                "[全] ${AccessibilityEvent.eventTypeToString(type)} pkg=$pkg " +
+                    "cls=${event.className?.toString()?.substringAfterLast('.')}$v " +
+                    runCatching { event.text?.joinToString(" ")?.take(30) }.getOrNull().orEmpty()
+            )
+        }
 
         if (type == AccessibilityEvent.TYPE_WINDOWS_CHANGED) {
             checkWindows()
@@ -221,6 +236,10 @@ class ScreenGuardService : AccessibilityService() {
 
     override fun onKeyEvent(event: KeyEvent?): Boolean {
         event ?: return false
+        if (Prefs.logEverything(this)) {
+            val act = if (event.action == KeyEvent.ACTION_DOWN) "按下" else "放開"
+            Logx.d("[全] 按鍵$act keycode=${event.keyCode} (${KeyEvent.keyCodeToString(event.keyCode)})")
+        }
         if (event.action != KeyEvent.ACTION_DOWN) return false
         if (Prefs.diagnostic(this)) Logx.d("[診斷] 按鍵 keycode=${event.keyCode} (${KeyEvent.keyCodeToString(event.keyCode)})")
         when (event.keyCode) {
@@ -339,6 +358,30 @@ class ScreenGuardService : AccessibilityService() {
             cancel("其他操作：$what")
             setDarkMode(false, "使用者操作螢幕")
         }
+    }
+
+    /** 全事件模式很吵，同型別＋同套件 250ms 內只留一筆。 */
+    private fun logAllThrottle(type: Int, pkg: String): Boolean {
+        val key = "$type/$pkg"
+        val now = SystemClock.uptimeMillis()
+        if (now - (lastLogAllAt[key] ?: 0L) < 250) return false
+        lastLogAllAt[key] = now
+        return true
+    }
+
+    /**
+     * 切換訂閱的事件範圍。XML 設定檔只是初始值，執行中可以用 setServiceInfo 改，
+     * 所以全事件模式不必重裝、也不用重開服務。
+     */
+    fun refreshEventMask() {
+        val info = serviceInfo ?: return
+        val all = Prefs.logEverything(this)
+        info.eventTypes = if (all) AccessibilityEvent.TYPES_ALL_MASK else DEFAULT_EVENT_MASK
+        runCatching { serviceInfo = info }
+        Logx.d("事件訂閱範圍：${if (all) "全部（很吵，找完記得關）" else "預設"}")
+        // 全事件模式下把觸控偵測一直掛著，這樣沒在倒數時碰螢幕也看得到
+        if (all) TouchWatcher.start(applicationContext)
+        else if (!armed) TouchWatcher.stop(applicationContext)
     }
 
     /**
@@ -538,6 +581,18 @@ class ScreenGuardService : AccessibilityService() {
 
         /** 螢幕亮起後多久內的音量事件，還算是「這次音量把螢幕喚醒的」。 */
         private const val WAKE_GRACE_MS = 4000L
+
+        /** 平常訂閱的事件（對應 accessibility_service_config.xml，全事件模式關掉後要還原成這組）。 */
+        private const val DEFAULT_EVENT_MASK =
+            AccessibilityEvent.TYPE_VIEW_CLICKED or
+                AccessibilityEvent.TYPE_VIEW_LONG_CLICKED or
+                AccessibilityEvent.TYPE_VIEW_SCROLLED or
+                AccessibilityEvent.TYPE_VIEW_FOCUSED or
+                AccessibilityEvent.TYPE_VIEW_SELECTED or
+                AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED or
+                AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED or
+                AccessibilityEvent.TYPE_WINDOWS_CHANGED or
+                AccessibilityEvent.TYPE_NOTIFICATION_STATE_CHANGED
 
         /** 執行中的服務實例，供設定頁測試呼叫。 */
         @Volatile

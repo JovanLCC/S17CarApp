@@ -244,6 +244,10 @@ class DevActivity : Activity() {
         addSwitch(switches, "只有調音量前螢幕是關閉的才變黑", Prefs.requireScreenOffFirst(this)) { Prefs.setRequireScreenOffFirst(this, it) }
         addSwitch(switches, "黑幕被點掉後，沒操作就自動再黑", Prefs.autoRedark(this)) { Prefs.setAutoRedark(this, it) }
         addSwitch(switches, "診斷模式：記錄車機所有動靜（找音量訊號用）", Prefs.diagnostic(this)) { Prefs.setDiagnostic(this, it) }
+        addSwitch(switches, "全事件模式：連畫面內容變化／觸控／按鍵放開都記（很吵）", Prefs.logEverything(this)) {
+            Prefs.setLogEverything(this, it)
+            ScreenGuardService.instance?.refreshEventMask()
+        }
         addSwitch(switches, "黑幕開著調音量時重貼黑幕蓋掉音量條（會閃一下）", Prefs.reassertOnVolume(this)) { Prefs.setReassertOnVolume(this, it) }
 
         val editVolKeys = findViewById<EditText>(R.id.editVolKeys)

@@ -15,7 +15,8 @@ import java.util.Locale
  */
 object Logx {
     private const val TAG = "ScreenGuard"
-    private const val MAX_LINES = 400
+    // 全事件模式一秒可能好幾十筆，緩衝太小的話關鍵那幾行會被沖掉
+    private const val MAX_LINES = 1500
 
     private val fmt = SimpleDateFormat("MM-dd HH:mm:ss", Locale.US)
     private val lines = ArrayDeque<String>()

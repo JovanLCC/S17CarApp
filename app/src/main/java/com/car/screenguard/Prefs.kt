@@ -26,6 +26,7 @@ object Prefs {
     private const val KEY_VOL_EVENT_CLS = "vol_event_cls"
     private const val KEY_REASSERT = "reassert_on_volume"
     private const val KEY_REQUIRE_SCREEN_OFF = "require_screen_off_first"
+    private const val KEY_LOG_ALL = "log_everything"
     private const val KEY_CLICK_KEYS = "click_keys"
     private const val DEFAULT_CLICK_KEYS = "關閉螢幕,關螢幕,螢幕關閉,黑屏,息屏,熄屏,關屏,screenoff,screen_off,screen off"
     private const val KEY_OVERLAY_BRIGHTNESS = "overlay_brightness"
@@ -124,6 +125,13 @@ object Prefs {
     /** 黑幕開著又調音量時，把黑幕重貼回最上層蓋掉車機音量條（會閃一下，預設關）。 */
     fun reassertOnVolume(c: Context) = sp(c).getBoolean(KEY_REASSERT, false)
     fun setReassertOnVolume(c: Context, v: Boolean) = sp(c).edit().putBoolean(KEY_REASSERT, v).apply()
+
+    /**
+     * 全事件模式：訂閱 TYPES_ALL_MASK，連畫面內容變化、觸控、按鍵放開通通記錄。
+     * 非常吵（車機 UI 一秒可能好幾十筆），只在追訊號時開。
+     */
+    fun logEverything(c: Context) = sp(c).getBoolean(KEY_LOG_ALL, false)
+    fun setLogEverything(c: Context, v: Boolean) = sp(c).edit().putBoolean(KEY_LOG_ALL, v).apply()
 
     /** 診斷模式：把所有畫面事件、按鍵、系統設定變化通通記下來，用來找出車機的音量訊號。 */
     fun diagnostic(c: Context) = sp(c).getBoolean(KEY_DIAGNOSTIC, true)
