@@ -57,7 +57,8 @@ object BlackOverlay {
             PixelFormat.OPAQUE
         ).apply {
             gravity = Gravity.TOP or Gravity.START
-            screenBrightness = 0.004f   // 幾乎全暗
+            // 0f = BRIGHTNESS_OVERRIDE_OFF，語意是關背光；有些機器真的會關，有些只壓到最低
+            screenBrightness = Prefs.overlayBrightness(app) / 1000f
             dimAmount = 1f
         }
 
@@ -77,7 +78,12 @@ object BlackOverlay {
         return runCatching {
             wm.addView(v, lp)
             view = v
-            Logx.d("已顯示全黑覆蓋層（點畫面解除）")
+            Logx.d("已顯示全黑覆蓋層（視窗亮度 ${Prefs.overlayBrightness(app)}‰，點畫面解除）")
+            // LCD 的背光不會因為畫面全黑而關掉，再把系統亮度一起壓到 0 才夠暗
+            if (Prefs.dimSystem(app)) {
+                val r = ScreenOff.brightnessZero(app)
+                Logx.d("同步壓低系統亮度：${r.msg}")
+            }
             onShown?.invoke()
             LockResult(true, "已顯示全黑覆蓋層，點畫面任一處解除")
         }.getOrElse {
@@ -92,6 +98,10 @@ object BlackOverlay {
         runCatching {
             (app.getSystemService(Context.WINDOW_SERVICE) as WindowManager).removeView(v)
         }
-        if (notify) onDismissed?.invoke()
+        // 重貼（notify=false）時不還原亮度，不然會閃一下亮的
+        if (notify) {
+            ScreenOff.restoreSystemSettings(app)
+            onDismissed?.invoke()
+        }
     }
 }

@@ -169,6 +169,9 @@ class ScreenGuardService : AccessibilityService() {
         runCatching { contentResolver.unregisterContentObserver(settingsObserver) }
         BlackOverlay.onDismissed = null
         BlackOverlay.onShown = null
+        // 服務被關掉時不能把螢幕留在全暗狀態，黑幕撤掉、亮度還原
+        BlackOverlay.hide(applicationContext, notify = false)
+        ScreenOff.restoreSystemSettings(this)
         TouchWatcher.onTouch = null
         TouchWatcher.stop(applicationContext)
         handler.removeCallbacksAndMessages(null)

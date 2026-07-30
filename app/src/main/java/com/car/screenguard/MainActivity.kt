@@ -22,6 +22,7 @@ class MainActivity : Activity() {
     private lateinit var status: TextView
     private lateinit var editSec: EditText
     private lateinit var checkRequireOff: CheckBox
+    private lateinit var checkDimSystem: CheckBox
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -31,6 +32,23 @@ class MainActivity : Activity() {
         status = findViewById(R.id.statusSimple)
         editSec = findViewById(R.id.editSec)
         editSec.setText((Prefs.getDelayMillis(this) / 1000).toString())
+
+        checkDimSystem = findViewById(R.id.checkDimSystem)
+        checkDimSystem.isChecked = Prefs.dimSystem(this)
+        checkDimSystem.setOnCheckedChangeListener { _, c ->
+            Prefs.setDimSystem(this, c)
+            Logx.d("設定變更：連系統亮度一起壓到 0 = $c")
+            if (c && !ScreenOff.canWriteSettings(this)) {
+                toast("需要「修改系統設定」權限，我帶你去開")
+                if (Build.VERSION.SDK_INT >= 23) {
+                    runCatching {
+                        startActivity(
+                            Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:$packageName"))
+                        )
+                    }
+                }
+            }
+        }
 
         checkRequireOff = findViewById(R.id.checkRequireOff)
         checkRequireOff.isChecked = Prefs.requireScreenOffFirst(this)
@@ -69,6 +87,11 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        // 自我修復：萬一 App 在壓低亮度時被系統殺掉，回到這裡就把亮度還原，不會一直暗著
+        if (!BlackOverlay.isShowing() && ScreenOff.hasPendingRestore(this)) {
+            Logx.d("偵測到亮度沒還原（可能上次被中斷）-> 自動還原")
+            ScreenOff.restoreSystemSettings(this)
+        }
         updateStatus()
     }
 
@@ -102,7 +125,20 @@ class MainActivity : Activity() {
         // 正式方案會把這項設成預設值，所以在後面照使用者勾選的狀態覆寫回去
         Prefs.setRequireScreenOffFirst(this, checkRequireOff.isChecked)
         Logx.d("=== 開始使用：$sec 秒、方法 J 黑幕、音量條 ${Prefs.volumeEventPkg(this)}/${Prefs.volumeEventCls(this)} ===")
-        toast("已開始使用，可以關掉 App 了")
+
+        // 「更黑」要改系統亮度，缺權限的話順手帶去開，不擋住啟用流程
+        if (Prefs.dimSystem(this) && !ScreenOff.canWriteSettings(this)) {
+            toast("已開始使用。「更黑」還需要「修改系統設定」權限，我帶你去開")
+            if (Build.VERSION.SDK_INT >= 23) {
+                runCatching {
+                    startActivity(
+                        Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:$packageName"))
+                    )
+                }
+            }
+        } else {
+            toast("已開始使用，可以關掉 App 了")
+        }
         updateStatus()
     }
 

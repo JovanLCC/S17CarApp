@@ -26,6 +26,8 @@ object Prefs {
     private const val KEY_VOL_EVENT_CLS = "vol_event_cls"
     private const val KEY_REASSERT = "reassert_on_volume"
     private const val KEY_REQUIRE_SCREEN_OFF = "require_screen_off_first"
+    private const val KEY_OVERLAY_BRIGHTNESS = "overlay_brightness"
+    private const val KEY_DIM_SYSTEM = "dim_system"
     private const val KEY_OFF_EVENT_PKG = "off_event_pkg"
     private const val KEY_OFF_EVENT_CLS = "off_event_cls"
 
@@ -80,6 +82,20 @@ object Prefs {
     fun requireScreenOffFirst(c: Context) = sp(c).getBoolean(KEY_REQUIRE_SCREEN_OFF, false)
     fun setRequireScreenOffFirst(c: Context, v: Boolean) =
         sp(c).edit().putBoolean(KEY_REQUIRE_SCREEN_OFF, v).apply()
+
+    /**
+     * 黑幕的視窗亮度覆寫，存千分比（0~1000）。
+     *
+     * 0 = `WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_OFF`，語意是「把背光關掉」，
+     * 有些機器真的會關、有些只會壓到最低。預設 0，壓不下去的話再往上調幾格試。
+     */
+    fun overlayBrightness(c: Context) = sp(c).getInt(KEY_OVERLAY_BRIGHTNESS, 0)
+    fun setOverlayBrightness(c: Context, v: Int) =
+        sp(c).edit().putInt(KEY_OVERLAY_BRIGHTNESS, v.coerceIn(0, 1000)).apply()
+
+    /** 蓋黑幕時連系統亮度一起壓到 0（需要「修改系統設定」權限），解除時還原。 */
+    fun dimSystem(c: Context) = sp(c).getBoolean(KEY_DIM_SYSTEM, true)
+    fun setDimSystem(c: Context, v: Boolean) = sp(c).edit().putBoolean(KEY_DIM_SYSTEM, v).apply()
 
     /**
      * 車機「關閉螢幕」按鈕的畫面事件特徵。

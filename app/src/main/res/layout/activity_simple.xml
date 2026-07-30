@@ -63,6 +63,21 @@
         </LinearLayout>
 
         <CheckBox
+            android:id="@+id/checkDimSystem"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="更黑：連系統亮度一起壓到 0"
+            android:textSize="17sp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:textSize="13sp"
+            android:text="LCD 的背光不會因為畫面全黑就關掉，所以黑幕晚上看起來還是灰灰的。勾這項會在蓋黑幕時把系統亮度也降到 0，解除時自動還原。需要「修改系統設定」權限。" />
+
+        <CheckBox
             android:id="@+id/checkRequireOff"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

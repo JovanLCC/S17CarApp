@@ -213,6 +213,7 @@ class DevActivity : Activity() {
         addSwitch(switches, "輪詢音量值（車機不送廣播時用）", Prefs.pollVolume(this)) { Prefs.setPollVolume(this, it) }
         addSwitch(switches, "備援：螢幕一亮就倒數（不管原因）", Prefs.triggerScreenOn(this)) { Prefs.setTriggerScreenOn(this, it) }
         addSwitch(switches, "倒數開始時顯示提示（除錯用）", Prefs.showToast(this)) { Prefs.setShowToast(this, it) }
+        addSwitch(switches, "蓋黑幕時連系統亮度一起壓到 0", Prefs.dimSystem(this)) { Prefs.setDimSystem(this, it) }
         addSwitch(switches, "只有調音量前螢幕是關閉的才變黑", Prefs.requireScreenOffFirst(this)) { Prefs.setRequireScreenOffFirst(this, it) }
         addSwitch(switches, "黑幕被點掉後，沒操作就自動再黑", Prefs.autoRedark(this)) { Prefs.setAutoRedark(this, it) }
         addSwitch(switches, "診斷模式：記錄車機所有動靜（找音量訊號用）", Prefs.diagnostic(this)) { Prefs.setDiagnostic(this, it) }
@@ -226,6 +227,8 @@ class DevActivity : Activity() {
         editVolWindows.setText(Prefs.volumeWindowPkgsRaw(this))
         val editOffEventPkg = findViewById<EditText>(R.id.editOffEventPkg)
         val editOffEventCls = findViewById<EditText>(R.id.editOffEventCls)
+        val editOverlayBrightness = findViewById<EditText>(R.id.editOverlayBrightness)
+        editOverlayBrightness.setText(Prefs.overlayBrightness(this).toString())
         editVolEventPkg.setText(Prefs.volumeEventPkg(this))
         editVolEventCls.setText(Prefs.volumeEventCls(this))
         editOffEventPkg.setText(Prefs.screenOffEventPkg(this))
@@ -237,6 +240,7 @@ class DevActivity : Activity() {
             Prefs.setVolumeEventCls(this, editVolEventCls.text.toString().trim())
             Prefs.setScreenOffEventPkg(this, editOffEventPkg.text.toString().trim())
             Prefs.setScreenOffEventCls(this, editOffEventCls.text.toString().trim())
+            editOverlayBrightness.text.toString().toIntOrNull()?.let { Prefs.setOverlayBrightness(this, it) }
             Logx.d("進階觸發已更新：音量條=${editVolEventPkg.text}/${editVolEventCls.text} 關閉螢幕鈕=${editOffEventPkg.text}/${editOffEventCls.text} 設定鍵=${editVolKeys.text} 視窗=${editVolWindows.text}")
             toast("已儲存")
             updateStatus()

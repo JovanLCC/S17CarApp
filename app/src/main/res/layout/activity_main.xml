@@ -229,6 +229,30 @@
             android:inputType="textNoSuggestions"
             android:singleLine="true" />
 
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="黑幕視窗亮度(‰)："
+                android:textSize="14sp" />
+            <EditText
+                android:id="@+id/editOverlayBrightness"
+                android:layout_width="70dp"
+                android:layout_height="wrap_content"
+                android:inputType="number"
+                android:singleLine="true" />
+            <TextView
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:textSize="12sp"
+                android:text="0＝要求關背光，1000＝全亮。改完按下面儲存，再測 J。" />
+        </LinearLayout>
+
         <EditText
             android:id="@+id/editOffEventPkg"
             android:layout_width="match_parent"

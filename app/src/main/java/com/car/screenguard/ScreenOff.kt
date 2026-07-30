@@ -128,19 +128,7 @@ object ScreenOff {
             }
         }
 
-        LockMethod.BRIGHTNESS_ZERO -> {
-            if (!canWriteSettings(app)) LockResult(false, "缺少「修改系統設定」權限")
-            else {
-                val cr = app.contentResolver
-                val mode = Settings.System.getInt(cr, Settings.System.SCREEN_BRIGHTNESS_MODE, -1)
-                val bri = Settings.System.getInt(cr, Settings.System.SCREEN_BRIGHTNESS, -1)
-                if (Prefs.savedBrightness(app) < 0 && bri >= 0) Prefs.setSavedBrightness(app, bri)
-                if (Prefs.savedBrightnessMode(app) < 0 && mode >= 0) Prefs.setSavedBrightnessMode(app, mode)
-                Settings.System.putInt(cr, Settings.System.SCREEN_BRIGHTNESS_MODE, 0)
-                Settings.System.putInt(cr, Settings.System.SCREEN_BRIGHTNESS, 0)
-                LockResult(true, "亮度 $bri -> 0（可按『還原亮度／逾時』復原）")
-            }
-        }
+        LockMethod.BRIGHTNESS_ZERO -> brightnessZero(app)
 
         LockMethod.BLACK_OVERLAY -> {
             if (!canDrawOverlay(app)) LockResult(false, "缺少「顯示在其他應用程式上層」權限")
@@ -222,9 +210,30 @@ object ScreenOff {
             Prefs.setSavedBrightness(c, -1)
             sb.append("亮度還原為 $it；")
         }
-        val msg = if (sb.isEmpty()) "沒有需要還原的設定" else sb.toString()
-        Logx.d("還原系統設定：$msg")
-        return msg
+        if (sb.isEmpty()) return "沒有需要還原的設定"
+        Logx.d("還原系統設定：$sb")
+        return sb.toString()
+    }
+
+    /** 亮度是不是還被我們壓著（用來在 App 重啟時自我修復，避免 App 被殺後螢幕一直暗著）。 */
+    fun hasPendingRestore(c: Context) = Prefs.savedBrightness(c) >= 0 || Prefs.savedTimeout(c) > 0
+
+    /**
+     * 把系統亮度壓到 0（並切成手動模式，不然自動亮度會馬上把它拉回去）。
+     * 原值存進 Prefs，[restoreSystemSettings] 會還原。
+     */
+    fun brightnessZero(app: Context): LockResult {
+        if (!canWriteSettings(app)) return LockResult(false, "缺少「修改系統設定」權限")
+        return runCatching {
+            val cr = app.contentResolver
+            val mode = Settings.System.getInt(cr, Settings.System.SCREEN_BRIGHTNESS_MODE, -1)
+            val bri = Settings.System.getInt(cr, Settings.System.SCREEN_BRIGHTNESS, -1)
+            if (Prefs.savedBrightness(app) < 0 && bri > 0) Prefs.setSavedBrightness(app, bri)
+            if (Prefs.savedBrightnessMode(app) < 0 && mode >= 0) Prefs.setSavedBrightnessMode(app, mode)
+            Settings.System.putInt(cr, Settings.System.SCREEN_BRIGHTNESS_MODE, 0)
+            Settings.System.putInt(cr, Settings.System.SCREEN_BRIGHTNESS, 0)
+            LockResult(true, "系統亮度 $bri -> 0")
+        }.getOrElse { LockResult(false, "系統亮度調整失敗：${it.message}") }
     }
 
     /** 螢幕真的關掉後，把方法 H 暫時改短的休眠逾時還原回去。 */
