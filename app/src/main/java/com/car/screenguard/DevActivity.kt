@@ -175,6 +175,13 @@ class DevActivity : Activity() {
             }
         }
 
+        findViewById<Button>(R.id.btnSnapshot).setOnClickListener {
+            toast("已記錄 ${SettingsSnapshot.save(this)} 個設定鍵，現在去按實體關螢幕鍵")
+        }
+        findViewById<Button>(R.id.btnDiff).setOnClickListener {
+            toast(SettingsSnapshot.diff(this))
+        }
+
         findViewById<Button>(R.id.btnScan).setOnClickListener {
             toast("開始掃描，過程中請不要碰螢幕")
             ScreenOff.scanPresetBroadcasts(this) { summary -> toast(summary) }

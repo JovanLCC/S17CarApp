@@ -509,13 +509,19 @@ class ScreenGuardService : AccessibilityService() {
         }
 
         Logx.d("=== 開始傾印畫面節點 ===")
-        runCatching { rootInActiveWindow }.getOrNull()?.let {
+        val active = runCatching { rootInActiveWindow }.getOrNull()
+        val winRoots = runCatching { windows.mapNotNull { w -> w.root } }.getOrNull().orEmpty()
+        if (active == null && winRoots.isEmpty()) {
+            Logx.d("!! 讀不到任何視窗內容 !!")
+            Logx.d("!! 這版加了「讀取畫面內容」權限，請把無障礙服務關掉再打開一次，讓系統重新授權 !!")
+            return 0
+        }
+        active?.let {
             Logx.d("[節點] -- 目前視窗 ${it.packageName} --")
             walk(it, 0)
         }
-        runCatching { windows }.getOrNull()?.forEach { w ->
-            val r = runCatching { w.root }.getOrNull() ?: return@forEach
-            Logx.d("[節點] -- 視窗 ${r.packageName} type=${w.type} --")
+        winRoots.forEach { r ->
+            Logx.d("[節點] -- 視窗 ${r.packageName} --")
             walk(r, 0)
         }
         Logx.d("=== 傾印結束，共 $count 個節點${if (count >= 200) "（已達上限，可能還有更多）" else ""} ===")

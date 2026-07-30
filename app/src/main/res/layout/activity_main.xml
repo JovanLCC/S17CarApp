@@ -117,6 +117,31 @@
             android:layout_height="wrap_content"
             android:text="5 秒後傾印畫面節點（切到車機畫面）" />
 
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:textSize="13sp"
+            android:text="實體關螢幕鍵抓不到訊號時用這組：先記錄快照 → 按實體鍵關螢幕 → 喚醒 → 按比對，看車機動了哪個系統設定。" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+            <Button
+                android:id="@+id/btnSnapshot"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:text="記錄設定快照" />
+            <Button
+                android:id="@+id/btnDiff"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:text="與快照比對" />
+        </LinearLayout>
+
         <Button
             android:id="@+id/btnScan"
             android:layout_width="match_parent"
