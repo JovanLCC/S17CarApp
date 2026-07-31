@@ -290,7 +290,7 @@
                 android:layout_weight="1"
                 android:layout_height="wrap_content"
                 android:textSize="12sp"
-                android:text="0＝要求關背光，1000＝全亮。改完按下面儲存，再測 J。" />
+                android:text="預設 4。0 是「要求關背光」，但這台實測設 0 也不會關，跟 4 沒差。" />
         </LinearLayout>
 
         <EditText

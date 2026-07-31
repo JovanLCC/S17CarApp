@@ -203,12 +203,27 @@ class ScreenGuardService : AccessibilityService() {
             )
         }
 
+        val cls = event.className?.toString() ?: ""
+
+        // === 安全優先：黑幕不能擋住倒車顯影 ===
+        if (BlackOverlay.isShowing()) {
+            val hay = "$pkg $cls ${runCatching { event.text?.joinToString(" ") }.getOrNull().orEmpty()}"
+            when {
+                Prefs.reverseKeys(this).any { hay.contains(it, true) } ->
+                    BlackOverlay.dropForSafety(applicationContext, "疑似倒車／攝影畫面：$hay")
+
+                // 系統決定要給你看新畫面（倒車、來電、警示），黑幕就該讓開
+                Prefs.dropOnNewWindow(this) &&
+                    type == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED &&
+                    pkg.isNotEmpty() && pkg != BuildInfo.PKG ->
+                    BlackOverlay.dropForSafety(applicationContext, "有新畫面跳到前景：$pkg")
+            }
+        }
+
         if (type == AccessibilityEvent.TYPE_WINDOWS_CHANGED) {
             checkWindows()
             return
         }
-
-        val cls = event.className?.toString() ?: ""
 
         if (Prefs.diagnostic(this)) {
             val txt = runCatching { event.text?.joinToString(" ")?.take(40) }.getOrNull().orEmpty()

@@ -33,7 +33,7 @@ object BlackOverlay {
      */
     fun reassert(app: Context) {
         if (view == null) return
-        hide(app, notify = false)
+        hide(app, notify = false, restore = false)
         show(app)
     }
 
@@ -91,17 +91,28 @@ object BlackOverlay {
         }
     }
 
+    /**
+     * @param notify  是否通知服務（會觸發「自動再黑」與離開暗模式）。重貼時要 false。
+     * @param restore 是否把被壓低的系統亮度還原。只有重貼時才 false，不然會閃一下亮的。
+     */
     @JvmOverloads
-    fun hide(app: Context, notify: Boolean = true) {
+    fun hide(app: Context, notify: Boolean = true, restore: Boolean = true) {
         val v = view ?: return
         view = null
         runCatching {
             (app.getSystemService(Context.WINDOW_SERVICE) as WindowManager).removeView(v)
         }
-        // 重貼（notify=false）時不還原亮度，不然會閃一下亮的
-        if (notify) {
-            ScreenOff.restoreSystemSettings(app)
-            onDismissed?.invoke()
-        }
+        if (restore) ScreenOff.restoreSystemSettings(app)
+        if (notify) onDismissed?.invoke()
+    }
+
+    /**
+     * 安全撤除：倒車顯影之類的畫面跳出來時用。
+     * 不通知服務，因此不會觸發「自動再黑」把畫面又蓋回去，但亮度一定還原。
+     */
+    fun dropForSafety(app: Context, why: String) {
+        if (view == null) return
+        Logx.d("⚠ 安全撤除黑幕：$why")
+        hide(app, notify = false, restore = true)
     }
 }

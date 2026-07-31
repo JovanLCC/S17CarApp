@@ -26,6 +26,10 @@ object Prefs {
     private const val KEY_VOL_EVENT_CLS = "vol_event_cls"
     private const val KEY_REASSERT = "reassert_on_volume"
     private const val KEY_REQUIRE_SCREEN_OFF = "require_screen_off_first"
+    private const val KEY_DROP_ON_NEW_WINDOW = "drop_on_new_window"
+    private const val KEY_REVERSE_KEYS = "reverse_keys"
+    private const val DEFAULT_REVERSE_KEYS =
+        "reverse,rear,backcar,back_car,camera,ccd,avin,cvbs,倒車,倒车,後視,后视,影像"
     private const val KEY_LOG_ALL = "log_everything"
     private const val KEY_CLICK_KEYS = "click_keys"
     private const val DEFAULT_CLICK_KEYS = "關閉螢幕,關螢幕,螢幕關閉,黑屏,息屏,熄屏,關屏,screenoff,screen_off,screen off"
@@ -89,12 +93,34 @@ object Prefs {
     /**
      * 黑幕的視窗亮度覆寫，存千分比（0~1000）。
      *
-     * 0 = `WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_OFF`，語意是「把背光關掉」，
-     * 有些機器真的會關、有些只會壓到最低。預設 0，壓不下去的話再往上調幾格試。
+     * 0 是 `BRIGHTNESS_OVERRIDE_OFF`（要求關背光），但**這台車機實測設 0 也不會關背光**，
+     * 跟 4 沒有差別。預設留 4 只是保守：別台機器若真的吃 0，畫面會全暗，
+     * 萬一那時倒車就看不見了。這個值不是黑幕蓋住倒車顯影的原因，
+     * 真正原因是圖層順序（見 [Prefs.dropOnNewWindow]）。
      */
-    fun overlayBrightness(c: Context) = sp(c).getInt(KEY_OVERLAY_BRIGHTNESS, 0)
+    fun overlayBrightness(c: Context) = sp(c).getInt(KEY_OVERLAY_BRIGHTNESS, 4)
     fun setOverlayBrightness(c: Context, v: Int) =
         sp(c).edit().putInt(KEY_OVERLAY_BRIGHTNESS, v.coerceIn(0, 1000)).apply()
+
+    /**
+     * 有新畫面跳到前景時自動撤掉黑幕。
+     *
+     * 黑幕是 TYPE_APPLICATION_OVERLAY，這個層級永遠蓋在一般 App 視窗之上，
+     * 而倒車顯影就是一般 App 畫面 —— 所以黑幕一定會蓋住它，靠亮度或圖層都繞不過去，
+     * 只能主動撤掉。倒車顯影、來電、警示都是「系統決定要給你看的東西」，黑幕不該擋著。
+     *
+     * 預設開啟。這是安全設定，除非你很清楚後果否則不要關。
+     */
+    fun dropOnNewWindow(c: Context) = sp(c).getBoolean(KEY_DROP_ON_NEW_WINDOW, true)
+    fun setDropOnNewWindow(c: Context, v: Boolean) =
+        sp(c).edit().putBoolean(KEY_DROP_ON_NEW_WINDOW, v).apply()
+
+    /** 只要畫面事件比對到這些字，一律立刻撤黑幕（倒車相關關鍵字）。 */
+    fun reverseKeys(c: Context): List<String> =
+        (sp(c).getString(KEY_REVERSE_KEYS, DEFAULT_REVERSE_KEYS) ?: "")
+            .split(",").map { it.trim() }.filter { it.isNotEmpty() }
+    fun reverseKeysRaw(c: Context): String = sp(c).getString(KEY_REVERSE_KEYS, DEFAULT_REVERSE_KEYS) ?: ""
+    fun setReverseKeys(c: Context, v: String) = sp(c).edit().putString(KEY_REVERSE_KEYS, v).apply()
 
     /**
      * 方法 M 要點的按鈕關鍵字（比對文字／說明／viewId，逗號分隔）。
