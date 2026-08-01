@@ -486,6 +486,32 @@ class ScreenGuardService : AccessibilityService() {
         }
     }
 
+    // === 模擬手指點擊（方法 N）===
+
+    /** 在螢幕座標點一下。走 dispatchGesture，跟真的手指按下去一樣。 */
+    fun tap(x: Int, y: Int): Boolean {
+        if (x < 0 || y < 0) return false
+        val path = android.graphics.Path().apply { moveTo(x.toFloat(), y.toFloat()) }
+        val stroke = android.accessibilityservice.GestureDescription.StrokeDescription(path, 0, 60)
+        val gesture = android.accessibilityservice.GestureDescription.Builder().addStroke(stroke).build()
+        return runCatching { dispatchGesture(gesture, null, null) }.getOrDefault(false)
+    }
+
+    /** 重播側錄的兩段點擊：先展開車機的輔助球，隔一段時間再點關螢幕的圖示。 */
+    fun playRecordedTaps(): LockResult {
+        if (!Prefs.tapsRecorded(this)) return LockResult(false, "還沒側錄點擊位置")
+        val (x1, y1) = Prefs.tap1(this)
+        val (x2, y2) = Prefs.tap2(this)
+        val gap = Prefs.tapGap(this)
+        val ok = tap(x1, y1)
+        Logx.d("模擬點擊第 1 下 ($x1,$y1) 送出=$ok，$gap ms 後點第 2 下")
+        handler.postDelayed({
+            val ok2 = tap(x2, y2)
+            Logx.d("模擬點擊第 2 下 ($x2,$y2) 送出=$ok2")
+        }, gap)
+        return LockResult(ok, "已模擬點擊 ($x1,$y1) → $gap ms → ($x2,$y2)")
+    }
+
     // === 直接去按車機自己的「關閉螢幕」按鈕 ===
     //
     // 這台車機：真正關螢幕（A/B）會讓系統睡著、音樂導航中斷；系統亮度設定被 ROM 忽略；

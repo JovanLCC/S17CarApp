@@ -26,6 +26,11 @@ object Prefs {
     private const val KEY_VOL_EVENT_CLS = "vol_event_cls"
     private const val KEY_REASSERT = "reassert_on_volume"
     private const val KEY_REQUIRE_SCREEN_OFF = "require_screen_off_first"
+    private const val KEY_TAP1_X = "tap1_x"
+    private const val KEY_TAP1_Y = "tap1_y"
+    private const val KEY_TAP2_X = "tap2_x"
+    private const val KEY_TAP2_Y = "tap2_y"
+    private const val KEY_TAP_GAP = "tap_gap"
     private const val KEY_DROP_ON_NEW_WINDOW = "drop_on_new_window"
     private const val KEY_REVERSE_KEYS = "reverse_keys"
     private const val DEFAULT_REVERSE_KEYS =
@@ -101,6 +106,24 @@ object Prefs {
     fun overlayBrightness(c: Context) = sp(c).getInt(KEY_OVERLAY_BRIGHTNESS, 4)
     fun setOverlayBrightness(c: Context, v: Int) =
         sp(c).edit().putInt(KEY_OVERLAY_BRIGHTNESS, v.coerceIn(0, 1000)).apply()
+
+    // === 側錄的兩段點擊（方法 N）===
+    // 車機左邊那顆懸浮輔助球：第一下展開選單，第二下才是關螢幕的圖示。
+    // 錄下這兩個座標後用 dispatchGesture 重播，等於幫使用者按 —— 走的是車機自己的關螢幕，
+    // 背光是真的關掉，也不會有黑幕擋住倒車顯影的問題。
+
+    fun tap1(c: Context): Pair<Int, Int> = sp(c).getInt(KEY_TAP1_X, -1) to sp(c).getInt(KEY_TAP1_Y, -1)
+    fun tap2(c: Context): Pair<Int, Int> = sp(c).getInt(KEY_TAP2_X, -1) to sp(c).getInt(KEY_TAP2_Y, -1)
+    fun setTap1(c: Context, x: Int, y: Int) = sp(c).edit().putInt(KEY_TAP1_X, x).putInt(KEY_TAP1_Y, y).apply()
+    fun setTap2(c: Context, x: Int, y: Int) = sp(c).edit().putInt(KEY_TAP2_X, x).putInt(KEY_TAP2_Y, y).apply()
+    fun tapsRecorded(c: Context) = tap1(c).first >= 0 && tap2(c).first >= 0
+    fun clearTaps(c: Context) = sp(c).edit()
+        .putInt(KEY_TAP1_X, -1).putInt(KEY_TAP1_Y, -1)
+        .putInt(KEY_TAP2_X, -1).putInt(KEY_TAP2_Y, -1).apply()
+
+    /** 兩下之間隔多久（毫秒），要夠選單展開完。 */
+    fun tapGap(c: Context) = sp(c).getLong(KEY_TAP_GAP, 800L)
+    fun setTapGap(c: Context, v: Long) = sp(c).edit().putLong(KEY_TAP_GAP, v).apply()
 
     /**
      * 有新畫面跳到前景時自動撤掉黑幕。
@@ -195,9 +218,11 @@ object Prefs {
      * 方法 J（假關螢幕）＋ 只靠音量條事件觸發 ＋ 其他操作取消 ＋ 關掉診斷與輪詢。
      */
     fun applyOfficialProfile(c: Context) {
+        // 側錄過就用模擬點擊（真的關背光），沒有的話才退回黑幕
+        val method = if (tapsRecorded(c)) LockMethod.SIMULATE_TAP else LockMethod.BLACK_OVERLAY
         sp(c).edit()
             .putBoolean(KEY_ENABLED, true)
-            .putString(KEY_METHOD, LockMethod.BLACK_OVERLAY.name)
+            .putString(KEY_METHOD, method.name)
             .putBoolean(KEY_TRIGGER_VOLUME, true)
             .putBoolean(KEY_TRIGGER_SCREEN_ON, false)   // 已經抓得到音量，不需要這條備援
             .putBoolean(KEY_POLL_VOLUME, false)         // 這台音量不走 AudioManager，輪詢是白工
@@ -215,7 +240,9 @@ object Prefs {
 
     /** 目前設定是不是就是正式方案。 */
     fun isOfficialProfile(c: Context): Boolean =
-        enabled(c) && method(c) == LockMethod.BLACK_OVERLAY && triggerVolume(c) &&
+        enabled(c) &&
+            (method(c) == LockMethod.BLACK_OVERLAY || method(c) == LockMethod.SIMULATE_TAP) &&
+            triggerVolume(c) &&
             !triggerScreenOn(c) && !diagnostic(c) &&
             volumeEventPkg(c).isNotEmpty() && volumeEventCls(c).isNotEmpty()
 

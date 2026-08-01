@@ -33,6 +33,33 @@ class MainActivity : Activity() {
         editSec = findViewById(R.id.editSec)
         editSec.setText((Prefs.getDelayMillis(this) / 1000).toString())
 
+        findViewById<Button>(R.id.btnRecordTaps).setOnClickListener {
+            val svc = ScreenGuardService.instance
+            if (svc == null) {
+                toast("請先啟用無障礙服務")
+                return@setOnClickListener
+            }
+            toast("待會畫面會蓋一層半透明，照上面的指示點兩下")
+            // 讓 App 退到背景，這樣點的才是車機畫面
+            moveTaskToBack(true)
+            android.os.Handler(mainLooper).postDelayed({
+                TapRecorder.start(applicationContext, svc) { msg ->
+                    Logx.d("側錄結果：$msg")
+                }
+            }, 700)
+        }
+
+        findViewById<Button>(R.id.btnTestTaps).setOnClickListener {
+            if (!Prefs.tapsRecorded(this)) {
+                toast("還沒側錄，請先按上面那顆")
+                return@setOnClickListener
+            }
+            moveTaskToBack(true)
+            android.os.Handler(mainLooper).postDelayed({
+                ScreenOff.run(this, LockMethod.SIMULATE_TAP) { }
+            }, 700)
+        }
+
         checkDimSystem = findViewById(R.id.checkDimSystem)
         checkDimSystem.isChecked = Prefs.dimSystem(this)
         checkDimSystem.setOnCheckedChangeListener { _, c ->
@@ -156,7 +183,15 @@ class MainActivity : Activity() {
             else -> buildString {
                 append("✅ 運作中\n")
                 append(if (gate) "螢幕原本關閉、被音量喚醒後" else "調整音量後")
-                append(" $sec 秒沒有其他操作就變黑；\n碰到螢幕就取消，黑幕點一下就解除。")
+                append(" $sec 秒沒有其他操作就關螢幕。\n")
+                append("方式：")
+                if (Prefs.method(this@MainActivity) == LockMethod.SIMULATE_TAP) {
+                    val (x1, y1) = Prefs.tap1(this@MainActivity)
+                    val (x2, y2) = Prefs.tap2(this@MainActivity)
+                    append("模擬點擊 ($x1,$y1) → ($x2,$y2)")
+                } else {
+                    append("黑幕（尚未側錄點擊位置）")
+                }
                 append("\n\nAndroid 看到的螢幕狀態：").append(screenState)
             }
         }

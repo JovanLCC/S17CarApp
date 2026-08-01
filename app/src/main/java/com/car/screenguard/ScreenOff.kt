@@ -29,7 +29,8 @@ enum class LockMethod(val code: String, val label: String, val needsMainThread: 
     BLACK_OVERLAY("J", "全黑覆蓋層＋視窗亮度 0（保底假關螢幕）"),
     CUSTOM_BROADCAST("K", "自訂廣播（下面欄位輸入 action）"),
     INJECT_POWER_KEY("L", "Instrumentation 注入 POWER 鍵", false),
-    CLICK_CAR_BUTTON("M", "點擊車機自己的「關閉螢幕」按鈕");
+    CLICK_CAR_BUTTON("M", "點擊車機自己的「關閉螢幕」按鈕"),
+    SIMULATE_TAP("N", "模擬點擊側錄的兩個位置（輔助球 → 關螢幕）");
 
     override fun toString() = "$code. $label"
 }
@@ -160,6 +161,10 @@ object ScreenOff {
 
         LockMethod.CLICK_CAR_BUTTON ->
             ScreenGuardService.instance?.clickScreenOffButton()
+                ?: LockResult(false, "無障礙服務尚未啟用")
+
+        LockMethod.SIMULATE_TAP ->
+            ScreenGuardService.instance?.playRecordedTaps()
                 ?: LockResult(false, "無障礙服務尚未啟用")
     }
 
