@@ -128,7 +128,8 @@ class ScreenGuardService : AccessibilityService() {
                     val v = intent.getIntExtra("android.media.EXTRA_VOLUME_STREAM_VALUE", -1)
                     val prev = intent.getIntExtra("android.media.EXTRA_PREV_VOLUME_STREAM_VALUE", -1)
                     val type = intent.getIntExtra("android.media.EXTRA_VOLUME_STREAM_TYPE", -1)
-                    if (v != prev) onVolumeChanged("廣播 stream=$type $prev->$v")
+                    if (v != prev) onVolumeChanged("廣播 stream=$type $prev->$v", v)
+                    else if (v >= 0) checkVolumeZeroGesture(v)   // 值沒變＝已經到底了還在按
                     snapshotVolumes()
                 }
                 Intent.ACTION_SCREEN_ON -> onScreenOn()
@@ -271,8 +272,17 @@ class ScreenGuardService : AccessibilityService() {
         if (event.action != KeyEvent.ACTION_DOWN) return false
         if (Prefs.diagnostic(this)) Logx.d("[診斷] 按鍵 keycode=${event.keyCode} (${KeyEvent.keyCodeToString(event.keyCode)})")
         when (event.keyCode) {
-            KeyEvent.KEYCODE_VOLUME_UP, KeyEvent.KEYCODE_VOLUME_DOWN, KeyEvent.KEYCODE_VOLUME_MUTE ->
+            // 音量已經是 0 時系統不會再發音量變化廣播，所以「連按 −」只剩按鍵這條路認得出來。
+            // 值要自己讀：這裡是按鍵被處理「之前」，讀到的就是按下去之前的音量，
+            // 所以從 1 按到 0 的那一下讀到 1（不算），已經是 0 再按才讀到 0（開始計數）。
+            KeyEvent.KEYCODE_VOLUME_DOWN ->
+                onVolumeChanged("實體鍵 音量−", keyVolumeValue())
+
+            KeyEvent.KEYCODE_VOLUME_UP, KeyEvent.KEYCODE_VOLUME_MUTE -> {
+                resetZeroGesture()   // 調大或靜音＝放棄這串手勢
                 onVolumeChanged("實體鍵 keycode=${event.keyCode}")
+            }
+
             else -> onUserActivity("按鍵 keycode=${event.keyCode}")
         }
         return false // 永遠不攔截，車機原本的功能照常
@@ -454,13 +464,28 @@ class ScreenGuardService : AccessibilityService() {
      * 音量已經是 0 之後，再按「−」五次就切換。
      * 手不用離開方向盤，而且音量到底時再按本來就沒作用，不會跟正常操作衝突。
      */
+    /**
+     * 音量鍵當下控制的是哪個 stream 的音量。
+     * 有在播音樂就是媒體音量，否則是鈴聲音量 —— 跟 Android 自己的按鍵路由一致。
+     */
+    private fun keyVolumeValue(): Int {
+        val stream = if (runCatching { audio.isMusicActive }.getOrDefault(false))
+            AudioManager.STREAM_MUSIC else AudioManager.STREAM_RING
+        return runCatching { audio.getStreamVolume(stream) }.getOrDefault(-1)
+    }
+
+    private fun resetZeroGesture() {
+        zeroCount = 0
+        wasZero = false
+    }
+
     private fun checkVolumeZeroGesture(value: Int) {
         if (!Prefs.volZeroToggle(this)) return
         val now = SystemClock.uptimeMillis()
 
+        if (value < 0) return   // 讀不到值，不能判斷
         if (value > 0) {
-            zeroCount = 0
-            wasZero = false
+            resetZeroGesture()
             return
         }
         // 剛從 1 掉到 0 的那一下不算，要「已經是 0」之後再按才算
