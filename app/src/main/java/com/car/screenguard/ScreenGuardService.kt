@@ -58,7 +58,6 @@ class ScreenGuardService : AccessibilityService() {
     private val lastLogAllAt = HashMap<String, Long>()
     private var tapCount = 0
     private var lastTapAt = 0L
-    private var tapToast: Toast? = null
     private var zeroCount = 0
     private var lastZeroAt = 0L
     private var wasZero = false
@@ -441,17 +440,8 @@ class ScreenGuardService : AccessibilityService() {
      * @return 是否已經切換（呼叫端要把自己的計數歸零）
      */
     private fun gestureProgress(count: Int, how: String): Boolean {
-        val now = Prefs.enabled(this)
-        val willEnable = !now
-        val state = if (now) "🟢 目前：開啟中" else "🔴 目前：已關閉"
-        val what = if (willEnable) "開啟" else "關閉"
-
-        if (count in TAP_WARN_AT until TAP_TOGGLE_AT) {
-            val left = if (TAP_TOGGLE_AT - count >= 2) "還有兩下" else "還有一次"
-            showToast("$state\n$left 就會$what")
-            return false
-        }
         if (count < TAP_TOGGLE_AT) return false
+        val willEnable = !Prefs.enabled(this)
 
         Prefs.setEnabled(this, willEnable)
         if (!willEnable) BlackOverlay.hide(applicationContext, notify = false)
@@ -459,10 +449,7 @@ class ScreenGuardService : AccessibilityService() {
         cancel("$how 切換")
         StateDot.refresh(applicationContext, willEnable)
         Logx.d("=== $how -> ${if (willEnable) "開啟" else "關閉"}自動關螢幕 ===")
-        showToast(
-            if (willEnable) "🟢 已開啟自動關螢幕" else "🔴 已關閉自動關螢幕（再做一次可開啟）",
-            long = true
-        )
+        showToast(if (willEnable) "🟢 已開啟自動關螢幕" else "🔴 已關閉自動關螢幕")
         return true
     }
 
@@ -515,16 +502,9 @@ class ScreenGuardService : AccessibilityService() {
      * 連點的提示會連續跳，用同一個 Toast 並先取消上一個。
      * 不然它們會排隊，第四下的提示要等第三下播完才出現，跟不上手速。
      */
-    private fun showToast(msg: String, long: Boolean = false) {
-        tapToast?.cancel()
-        tapToast = null
-        // cancel() 之後「立刻」show()，有些 ROM 會把新的那個一起吞掉 ——
-        // 第 4、5 下之間只隔幾百毫秒，結果最重要的「已開啟／已關閉」最容易不見。
-        // 隔一個訊息迴圈再送就穩定了。
-        handler.postDelayed({
-            tapToast = Toast.makeText(this, msg, if (long) Toast.LENGTH_LONG else Toast.LENGTH_SHORT)
-                .also { it.show() }
-        }, 120)
+    /** 只在切換完成時跳一次，所以不需要處理 toast 互相取消的問題。 */
+    private fun showToast(msg: String) {
+        Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
     }
 
     private val stopBlockingRunnable = Runnable {
