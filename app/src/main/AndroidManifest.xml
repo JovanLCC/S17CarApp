@@ -51,6 +51,16 @@
                 android:resource="@xml/accessibility_service_config" />
         </service>
 
+        <!-- 通知欄開關的兩顆按鈕 -->
+        <receiver
+            android:name=".ToggleReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.car.screenguard.action.ENABLE" />
+                <action android:name="com.car.screenguard.action.DISABLE" />
+            </intent-filter>
+        </receiver>
+
         <!-- 方法 B：裝置管理員 DevicePolicyManager.lockNow() -->
         <receiver
             android:name=".AdminReceiver"

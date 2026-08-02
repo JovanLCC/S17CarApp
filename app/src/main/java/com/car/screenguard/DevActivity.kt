@@ -240,6 +240,10 @@ class DevActivity : Activity() {
         addSwitch(switches, "輪詢音量值（車機不送廣播時用）", Prefs.pollVolume(this)) { Prefs.setPollVolume(this, it) }
         addSwitch(switches, "備援：螢幕一亮就倒數（不管原因）", Prefs.triggerScreenOn(this)) { Prefs.setTriggerScreenOn(this, it) }
         addSwitch(switches, "倒數開始時顯示提示（除錯用）", Prefs.showToast(this)) { Prefs.setShowToast(this, it) }
+        addSwitch(switches, "通知欄常駐開關", Prefs.showNotification(this)) {
+            Prefs.setShowNotification(this, it)
+            if (it) NotifyToggle.show(this) else NotifyToggle.hide(this)
+        }
         addSwitch(switches, "角落顯示狀態圓點（綠＝開啟、紅＝關閉）", Prefs.showStateDot(this)) {
             Prefs.setShowStateDot(this, it)
             StateDot.refresh(applicationContext, Prefs.enabled(this))

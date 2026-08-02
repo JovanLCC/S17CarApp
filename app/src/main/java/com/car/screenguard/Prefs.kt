@@ -34,6 +34,7 @@ object Prefs {
     private const val KEY_TAP_TOGGLE = "tap_toggle"
     private const val KEY_VOL_ZERO_TOGGLE = "vol_zero_toggle"
     private const val KEY_STATE_DOT = "state_dot"
+    private const val KEY_NOTIFICATION = "show_notification"
     private const val KEY_DROP_ON_NEW_WINDOW = "drop_on_new_window"
     private const val KEY_REVERSE_KEYS = "reverse_keys"
     private const val DEFAULT_REVERSE_KEYS =
@@ -133,8 +134,12 @@ object Prefs {
     fun volZeroToggle(c: Context) = sp(c).getBoolean(KEY_VOL_ZERO_TOGGLE, true)
     fun setVolZeroToggle(c: Context, v: Boolean) = sp(c).edit().putBoolean(KEY_VOL_ZERO_TOGGLE, v).apply()
 
-    /** 角落顯示狀態圓點：綠＝開啟中，紅＝已關閉。 */
-    fun showStateDot(c: Context) = sp(c).getBoolean(KEY_STATE_DOT, true)
+    /** 通知欄常駐開關（車機上音量手勢收不到訊號，這條路最可靠，預設開）。 */
+    fun showNotification(c: Context) = sp(c).getBoolean(KEY_NOTIFICATION, true)
+    fun setShowNotification(c: Context, v: Boolean) = sp(c).edit().putBoolean(KEY_NOTIFICATION, v).apply()
+
+    /** 角落狀態圓點：綠＝開啟中，紅＝已關閉。通知欄已經看得到狀態，所以預設關。 */
+    fun showStateDot(c: Context) = sp(c).getBoolean(KEY_STATE_DOT, false)
     fun setShowStateDot(c: Context, v: Boolean) = sp(c).edit().putBoolean(KEY_STATE_DOT, v).apply()
 
     /** 連點五下切換啟用／停用（實際用起來不順手，預設關閉，改用 [volZeroToggle]）。 */

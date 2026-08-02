@@ -164,6 +164,7 @@ class ScreenGuardService : AccessibilityService() {
         // 連點偵測要一直在，不能只有倒數期間才掛
         TouchWatcher.start(applicationContext)
         StateDot.refresh(applicationContext, Prefs.enabled(this))
+        NotifyToggle.show(this)
         lastScreenOnAt = SystemClock.uptimeMillis()
         runCatching {
             val pm = getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
@@ -191,6 +192,7 @@ class ScreenGuardService : AccessibilityService() {
         TouchWatcher.stopBlocking(applicationContext)
         TouchWatcher.stop(applicationContext)
         StateDot.hide(applicationContext)
+        NotifyToggle.hide(applicationContext)
         handler.removeCallbacksAndMessages(null)
         Logx.d("=== 服務已中斷 ===")
     }
@@ -443,12 +445,9 @@ class ScreenGuardService : AccessibilityService() {
         if (count < TAP_TOGGLE_AT) return false
         val willEnable = !Prefs.enabled(this)
 
-        Prefs.setEnabled(this, willEnable)
-        if (!willEnable) BlackOverlay.hide(applicationContext, notify = false)
+        NotifyToggle.applyEnabled(this, willEnable, "$how 切換")
         // 不管開或關，都不要讓觸發手勢的那幾下順便把螢幕關掉
         cancel("$how 切換")
-        StateDot.refresh(applicationContext, willEnable)
-        Logx.d("=== $how -> ${if (willEnable) "開啟" else "關閉"}自動關螢幕 ===")
         showToast(if (willEnable) "🟢 已開啟自動關螢幕" else "🔴 已關閉自動關螢幕")
         return true
     }

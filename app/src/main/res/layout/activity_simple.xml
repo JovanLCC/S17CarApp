@@ -154,7 +154,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="20dp"
             android:textSize="13sp"
-            android:text="開始使用後就可以關掉這個 App，它會在背景繼續運作。\n\n開車途中要臨時讓螢幕一直亮著（例如在不熟的路上看地圖）：把音量轉到 0，再按「−」五次就會關閉；同樣動作再做一次就開啟。手不用離開方向盤。第三、四下會跳提示，不想切換就停手。" />
+            android:text="開始使用後就可以關掉這個 App，它會在背景繼續運作。\n\n開車途中要臨時讓螢幕一直亮著（例如在不熟的路上看地圖）：往下滑開通知欄，裡面有常駐的「開啟／關閉」按鈕，通知標題也會顯示目前狀態。" />
 
         <Button
             android:id="@+id/btnDev"

@@ -99,11 +99,7 @@ class MainActivity : Activity() {
         }
 
         findViewById<Button>(R.id.btnStop).setOnClickListener {
-            Prefs.setEnabled(this, false)
-            ScreenGuardService.instance?.cancel("使用者按停止")
-            BlackOverlay.hide(applicationContext)
-            StateDot.refresh(applicationContext, false)
-            Logx.d("=== 使用者按下停止 ===")
+            NotifyToggle.applyEnabled(this, false, "主畫面按下停止")
             toast("已停止")
             updateStatus()
         }
@@ -153,7 +149,7 @@ class MainActivity : Activity() {
         // 正式方案會把這項設成預設值，所以在後面照使用者勾選的狀態覆寫回去
         Prefs.setRequireScreenOffFirst(this, checkRequireOff.isChecked)
         Logx.d("=== 開始使用：$sec 秒、方法 ${Prefs.method(this).code}、音量條 ${Prefs.volumeEventPkg(this)}/${Prefs.volumeEventCls(this)} ===")
-        StateDot.refresh(applicationContext, true)
+        NotifyToggle.applyEnabled(this, true, "主畫面開始使用")
 
         // 「更黑」要改系統亮度，缺權限的話順手帶去開，不擋住啟用流程
         if (Prefs.dimSystem(this) && !ScreenOff.canWriteSettings(this)) {
