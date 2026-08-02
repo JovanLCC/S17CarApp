@@ -56,6 +56,8 @@ class ScreenGuardService : AccessibilityService() {
     private var lastWindowsAt = 0L
     private val lastSettingAt = HashMap<String, Long>()
     private val lastLogAllAt = HashMap<String, Long>()
+    private var tapCount = 0
+    private var lastTapAt = 0L
 
     /** 這些 App 的畫面變化不算「使用者操作」（例如調音量時跳出來的音量條）。 */
     private val ignoredPackages = setOf(
@@ -76,7 +78,6 @@ class ScreenGuardService : AccessibilityService() {
 
     private val lockRunnable = Runnable {
         armed = false
-        TouchWatcher.stop(applicationContext)
         val method = Prefs.method(this)
         if (method == LockMethod.BLACK_OVERLAY && BlackOverlay.isShowing()) {
             Logx.d("倒數結束，但黑幕已經在顯示中，略過")
@@ -153,8 +154,11 @@ class ScreenGuardService : AccessibilityService() {
         BlackOverlay.onShown = { setDarkMode(true, "黑幕已蓋上") }
         TouchWatcher.onTouch = {
             if (Prefs.logEverything(this)) Logx.d("[全] 觸控螢幕")
+            onScreenTapped()
             onUserActivity("觸控螢幕")
         }
+        // 連點偵測要一直在，不能只有倒數期間才掛
+        TouchWatcher.start(applicationContext)
         lastScreenOnAt = SystemClock.uptimeMillis()
         runCatching {
             val pm = getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
@@ -179,6 +183,7 @@ class ScreenGuardService : AccessibilityService() {
         BlackOverlay.hide(applicationContext, notify = false)
         ScreenOff.restoreSystemSettings(this)
         TouchWatcher.onTouch = null
+        TouchWatcher.stopBlocking(applicationContext)
         TouchWatcher.stop(applicationContext)
         handler.removeCallbacksAndMessages(null)
         Logx.d("=== 服務已中斷 ===")
@@ -375,6 +380,60 @@ class ScreenGuardService : AccessibilityService() {
         }
     }
 
+    // === 連點五下切換啟用／停用 ===
+    //
+    // 開車到不熟的地方需要螢幕一直亮著，這時調音量被關掉螢幕很煩。
+    // 用連點是因為開車時不必瞄準，隨便戳都行；懸浮按鈕反而要看一眼才點得到。
+    // 第三下先跳提示，讓誤觸的人有機會停手。
+
+    private fun onScreenTapped() {
+        if (!Prefs.tapToggle(this)) return
+        val now = SystemClock.uptimeMillis()
+
+        // 同一下可能同時被偵測層與攔截層收到，太接近就當重複
+        if (now - lastTapAt < 120) return
+        // 兩下間隔太久就重新算起
+        tapCount = if (now - lastTapAt > TAP_MAX_GAP_MS) 1 else tapCount + 1
+        lastTapAt = now
+
+        val willEnable = !Prefs.enabled(this)
+        when {
+            tapCount == TAP_WARN_AT -> {
+                Toast.makeText(
+                    this,
+                    if (willEnable) "再點兩下就會啟用自動關螢幕" else "再點兩下就會停用自動關螢幕",
+                    Toast.LENGTH_SHORT
+                ).show()
+                // 從這下之後開始攔截，後兩下就不會誤點到底下的車機 UI
+                TouchWatcher.startBlocking(applicationContext)
+                handler.removeCallbacks(stopBlockingRunnable)
+                handler.postDelayed(stopBlockingRunnable, TAP_MAX_GAP_MS * 2)
+            }
+
+            tapCount >= TAP_TOGGLE_AT -> {
+                tapCount = 0
+                handler.removeCallbacks(stopBlockingRunnable)
+                TouchWatcher.stopBlocking(applicationContext)
+                Prefs.setEnabled(this, willEnable)
+                if (!willEnable) {
+                    cancel("使用者連點停用")
+                    BlackOverlay.hide(applicationContext, notify = false)
+                }
+                Logx.d("=== 連點五下 -> ${if (willEnable) "啟用" else "停用"}自動關螢幕 ===")
+                Toast.makeText(
+                    this,
+                    if (willEnable) "已啟用自動關螢幕" else "已停用自動關螢幕（再點五下恢復）",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+    }
+
+    private val stopBlockingRunnable = Runnable {
+        TouchWatcher.stopBlocking(applicationContext)
+        tapCount = 0
+    }
+
     /** 全事件模式很吵，同型別＋同套件 250ms 內只留一筆。 */
     private fun logAllThrottle(type: Int, pkg: String): Boolean {
         val key = "$type/$pkg"
@@ -394,9 +453,6 @@ class ScreenGuardService : AccessibilityService() {
         info.eventTypes = if (all) AccessibilityEvent.TYPES_ALL_MASK else DEFAULT_EVENT_MASK
         runCatching { serviceInfo = info }
         Logx.d("事件訂閱範圍：${if (all) "全部（很吵，找完記得關）" else "預設"}")
-        // 全事件模式下把觸控偵測一直掛著，這樣沒在倒數時碰螢幕也看得到
-        if (all) TouchWatcher.start(applicationContext)
-        else if (!armed) TouchWatcher.stop(applicationContext)
     }
 
     /**
@@ -446,7 +502,7 @@ class ScreenGuardService : AccessibilityService() {
         armedResetOnly = resetOnly
         handler.removeCallbacks(lockRunnable)
         handler.postDelayed(lockRunnable, delay)
-        // 倒數期間才需要盯著觸控，平常不掛，免得白佔一個視窗
+        // 偵測層平常就掛著（連點切換要用），這裡只是保險確認它還在
         TouchWatcher.start(applicationContext)
         Logx.d("啟動倒數 ${delay / 1000} 秒（$reason）")
         if (Prefs.showToast(this)) {
@@ -458,7 +514,6 @@ class ScreenGuardService : AccessibilityService() {
         if (!armed) return
         armed = false
         handler.removeCallbacks(lockRunnable)
-        TouchWatcher.stop(applicationContext)
         Logx.d("倒數取消（$reason）")
     }
 
@@ -622,6 +677,11 @@ class ScreenGuardService : AccessibilityService() {
 
         /** 螢幕亮起後多久內的音量事件，還算是「這次音量把螢幕喚醒的」。 */
         private const val WAKE_GRACE_MS = 4000L
+
+        /** 連點：兩下之間最多隔多久還算同一串。 */
+        private const val TAP_MAX_GAP_MS = 900L
+        private const val TAP_WARN_AT = 3
+        private const val TAP_TOGGLE_AT = 5
 
         /** 平常訂閱的事件（對應 accessibility_service_config.xml，全事件模式關掉後要還原成這組）。 */
         private const val DEFAULT_EVENT_MASK =

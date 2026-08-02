@@ -21,11 +21,60 @@ import android.view.WindowManager
 object TouchWatcher {
 
     private var view: View? = null
+    private var blocker: View? = null
 
     @Volatile
     var onTouch: (() -> Unit)? = null
 
     fun isRunning() = view != null
+
+    /** 吃掉觸控的那層是不是開著（開著時偵測層的事件要忽略，否則同一下會算兩次）。 */
+    fun isBlocking() = blocker != null
+
+    /**
+     * 蓋一層全螢幕、會**吃掉**觸控的透明層。
+     *
+     * 連點切換走到一半時用：前幾下攔不住（偵測層是 NOT_TOUCHABLE，攔了車機就不能操作），
+     * 但從這裡開始的點擊就不會再穿透到底下的車機 UI。
+     */
+    fun startBlocking(app: Context) {
+        if (blocker != null) return
+        if (!ScreenOff.canDrawOverlay(app)) return
+        val wm = app.getSystemService(Context.WINDOW_SERVICE) as WindowManager
+        val lp = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.MATCH_PARENT,
+            overlayType(),
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            PixelFormat.TRANSLUCENT
+        ).apply { gravity = Gravity.TOP or Gravity.START }
+
+        val v = View(app).apply {
+            setOnTouchListener { _, e ->
+                if (e.action == MotionEvent.ACTION_DOWN) onTouch?.invoke()
+                true // 吃掉，不往下傳
+            }
+        }
+        runCatching {
+            wm.addView(v, lp)
+            blocker = v
+        }
+    }
+
+    fun stopBlocking(app: Context) {
+        val v = blocker ?: return
+        blocker = null
+        runCatching {
+            (app.getSystemService(Context.WINDOW_SERVICE) as WindowManager).removeView(v)
+        }
+    }
+
+    private fun overlayType() = if (Build.VERSION.SDK_INT >= 26)
+        WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+    else
+        @Suppress("DEPRECATION") WindowManager.LayoutParams.TYPE_SYSTEM_ALERT
 
     /** 必須在主執行緒呼叫。 */
     fun start(app: Context) {
@@ -35,13 +84,8 @@ object TouchWatcher {
             return
         }
         val wm = app.getSystemService(Context.WINDOW_SERVICE) as WindowManager
-        val type = if (Build.VERSION.SDK_INT >= 26)
-            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-        else
-            @Suppress("DEPRECATION") WindowManager.LayoutParams.TYPE_SYSTEM_ALERT
-
         val lp = WindowManager.LayoutParams(
-            1, 1, type,
+            1, 1, overlayType(),
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                 WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or   // 不擋使用者操作
                 WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH or

@@ -31,6 +31,7 @@ object Prefs {
     private const val KEY_TAP2_X = "tap2_x"
     private const val KEY_TAP2_Y = "tap2_y"
     private const val KEY_TAP_GAP = "tap_gap"
+    private const val KEY_TAP_TOGGLE = "tap_toggle"
     private const val KEY_DROP_ON_NEW_WINDOW = "drop_on_new_window"
     private const val KEY_REVERSE_KEYS = "reverse_keys"
     private const val DEFAULT_REVERSE_KEYS =
@@ -120,6 +121,13 @@ object Prefs {
     fun clearTaps(c: Context) = sp(c).edit()
         .putInt(KEY_TAP1_X, -1).putInt(KEY_TAP1_Y, -1)
         .putInt(KEY_TAP2_X, -1).putInt(KEY_TAP2_Y, -1).apply()
+
+    /**
+     * 連點五下切換啟用／停用。
+     * 給「在不熟的路上要一直看螢幕」用的臨時開關：開車時連點不必瞄準，比懸浮按鈕安全。
+     */
+    fun tapToggle(c: Context) = sp(c).getBoolean(KEY_TAP_TOGGLE, true)
+    fun setTapToggle(c: Context, v: Boolean) = sp(c).edit().putBoolean(KEY_TAP_TOGGLE, v).apply()
 
     /** 兩下之間隔多久（毫秒），要夠選單展開完。 */
     fun tapGap(c: Context) = sp(c).getLong(KEY_TAP_GAP, 800L)
