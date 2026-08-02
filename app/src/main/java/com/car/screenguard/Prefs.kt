@@ -32,6 +32,7 @@ object Prefs {
     private const val KEY_TAP2_Y = "tap2_y"
     private const val KEY_TAP_GAP = "tap_gap"
     private const val KEY_TAP_TOGGLE = "tap_toggle"
+    private const val KEY_VOL_ZERO_TOGGLE = "vol_zero_toggle"
     private const val KEY_DROP_ON_NEW_WINDOW = "drop_on_new_window"
     private const val KEY_REVERSE_KEYS = "reverse_keys"
     private const val DEFAULT_REVERSE_KEYS =
@@ -123,10 +124,16 @@ object Prefs {
         .putInt(KEY_TAP2_X, -1).putInt(KEY_TAP2_Y, -1).apply()
 
     /**
-     * 連點五下切換啟用／停用。
-     * 給「在不熟的路上要一直看螢幕」用的臨時開關：開車時連點不必瞄準，比懸浮按鈕安全。
+     * 音量歸零後再按「−」五次，切換啟用／停用。
+     *
+     * 比點螢幕好用：手不用離開方向盤，也不必瞄準。
+     * 而且音量已經是 0 時再按「−」本來就是無效動作，不會跟任何正常操作衝突。
      */
-    fun tapToggle(c: Context) = sp(c).getBoolean(KEY_TAP_TOGGLE, true)
+    fun volZeroToggle(c: Context) = sp(c).getBoolean(KEY_VOL_ZERO_TOGGLE, true)
+    fun setVolZeroToggle(c: Context, v: Boolean) = sp(c).edit().putBoolean(KEY_VOL_ZERO_TOGGLE, v).apply()
+
+    /** 連點五下切換啟用／停用（實際用起來不順手，預設關閉，改用 [volZeroToggle]）。 */
+    fun tapToggle(c: Context) = sp(c).getBoolean(KEY_TAP_TOGGLE, false)
     fun setTapToggle(c: Context, v: Boolean) = sp(c).edit().putBoolean(KEY_TAP_TOGGLE, v).apply()
 
     /** 兩下之間隔多久（毫秒），要夠選單展開完。 */

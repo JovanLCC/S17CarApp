@@ -59,6 +59,9 @@ class ScreenGuardService : AccessibilityService() {
     private var tapCount = 0
     private var lastTapAt = 0L
     private var tapToast: Toast? = null
+    private var zeroCount = 0
+    private var lastZeroAt = 0L
+    private var wasZero = false
 
     /** 這些 App 的畫面變化不算「使用者操作」（例如調音量時跳出來的音量條）。 */
     private val ignoredPackages = setOf(
@@ -245,8 +248,12 @@ class ScreenGuardService : AccessibilityService() {
 
         // 音量條要在「使用者操作」之前判斷，否則調音量會被當成操作把倒數取消掉
         if (isVolumeEvent(pkg, cls)) {
-            val value = if (event.itemCount > 0) "=${event.currentItemIndex}/${event.itemCount}" else ""
-            onVolumeChanged("車機音量條 ${cls.substringAfterLast('.')}$value")
+            val hasValue = event.itemCount > 0
+            val value = if (hasValue) event.currentItemIndex else -1
+            onVolumeChanged(
+                "車機音量條 ${cls.substringAfterLast('.')}" + if (hasValue) "=$value/${event.itemCount}" else "",
+                if (hasValue) value else null
+            )
             return
         }
 
@@ -331,9 +338,13 @@ class ScreenGuardService : AccessibilityService() {
         Logx.d("螢幕已關閉")
     }
 
-    private fun onVolumeChanged(source: String) {
+    /** @param value 目前音量值，讀不到就傳 null。用來認「音量歸零後連按」的手勢。 */
+    private fun onVolumeChanged(source: String, value: Int? = null) {
         lastVolumeAt = SystemClock.uptimeMillis()
         Logx.d("★ 偵測到音量變化（$source）")
+
+        // 手勢判斷要放在所有 return 之前：停用狀態下也得認得出「再做一次」要重新開啟
+        if (value != null) checkVolumeZeroGesture(value)
 
         // 已經是黑幕了就什麼都不用做，不再開一輪倒數
         if (BlackOverlay.isShowing()) {
@@ -398,35 +409,74 @@ class ScreenGuardService : AccessibilityService() {
         lastTapAt = now
         if (Prefs.diagnostic(this)) Logx.d("觸控偵測：第 $tapCount 下（$TAP_TOGGLE_AT 下切換）")
 
+        if (tapCount in TAP_WARN_AT until TAP_TOGGLE_AT) {
+            // 從第三下開始攔截，後兩下就不會誤點到底下的車機 UI
+            TouchWatcher.startBlocking(applicationContext)
+            handler.removeCallbacks(stopBlockingRunnable)
+            handler.postDelayed(stopBlockingRunnable, TAP_MAX_GAP_MS * 2)
+        }
+        if (gestureProgress(tapCount, "連點五下")) {
+            tapCount = 0
+            handler.removeCallbacks(stopBlockingRunnable)
+            TouchWatcher.stopBlocking(applicationContext)
+        }
+    }
+
+    /**
+     * 連續手勢的共用進度處理：第三、四下提示，第五下切換。
+     * 點螢幕與音量鍵兩種手勢都走這裡。
+     *
+     * @return 是否已經切換（呼叫端要把自己的計數歸零）
+     */
+    private fun gestureProgress(count: Int, how: String): Boolean {
         val willEnable = !Prefs.enabled(this)
         val what = if (willEnable) "開啟自動關螢幕" else "關閉自動關螢幕"
-        val remain = TAP_TOGGLE_AT - tapCount
 
-        when {
-            // 第三、四下：倒數提示，讓誤觸的人可以停手
-            tapCount in TAP_WARN_AT until TAP_TOGGLE_AT -> {
-                showToast(if (remain >= 2) "還有兩下 → $what" else "還有一次 → $what")
-                // 從第三下開始攔截，後兩下就不會誤點到底下的車機 UI
-                TouchWatcher.startBlocking(applicationContext)
-                handler.removeCallbacks(stopBlockingRunnable)
-                handler.postDelayed(stopBlockingRunnable, TAP_MAX_GAP_MS * 2)
-            }
+        if (count in TAP_WARN_AT until TAP_TOGGLE_AT) {
+            showToast(if (TAP_TOGGLE_AT - count >= 2) "還有兩下 → $what" else "還有一次 → $what")
+            return false
+        }
+        if (count < TAP_TOGGLE_AT) return false
 
-            tapCount >= TAP_TOGGLE_AT -> {
-                tapCount = 0
-                handler.removeCallbacks(stopBlockingRunnable)
-                TouchWatcher.stopBlocking(applicationContext)
-                Prefs.setEnabled(this, willEnable)
-                if (!willEnable) {
-                    cancel("使用者連點關閉")
-                    BlackOverlay.hide(applicationContext, notify = false)
-                }
-                Logx.d("=== 連點五下 -> ${if (willEnable) "開啟" else "關閉"}自動關螢幕 ===")
-                showToast(
-                    if (willEnable) "已開啟自動關螢幕" else "已關閉自動關螢幕（再連點五下開啟）",
-                    long = true
-                )
-            }
+        Prefs.setEnabled(this, willEnable)
+        if (!willEnable) BlackOverlay.hide(applicationContext, notify = false)
+        // 不管開或關，都不要讓觸發手勢的那幾下順便把螢幕關掉
+        cancel("$how 切換")
+        Logx.d("=== $how -> ${if (willEnable) "開啟" else "關閉"}自動關螢幕 ===")
+        showToast(
+            if (willEnable) "已開啟自動關螢幕" else "已關閉自動關螢幕（再做一次可開啟）",
+            long = true
+        )
+        return true
+    }
+
+    /**
+     * 音量已經是 0 之後，再按「−」五次就切換。
+     * 手不用離開方向盤，而且音量到底時再按本來就沒作用，不會跟正常操作衝突。
+     */
+    private fun checkVolumeZeroGesture(value: Int) {
+        if (!Prefs.volZeroToggle(this)) return
+        val now = SystemClock.uptimeMillis()
+
+        if (value > 0) {
+            zeroCount = 0
+            wasZero = false
+            return
+        }
+        // 剛從 1 掉到 0 的那一下不算，要「已經是 0」之後再按才算
+        if (!wasZero) {
+            wasZero = true
+            zeroCount = 0
+            lastZeroAt = now
+            return
+        }
+        zeroCount = if (now - lastZeroAt > VOL_GESTURE_GAP_MS) 1 else zeroCount + 1
+        lastZeroAt = now
+        if (Prefs.diagnostic(this)) Logx.d("音量已為 0，再按第 $zeroCount 下（$TAP_TOGGLE_AT 下切換）")
+
+        if (gestureProgress(zeroCount, "音量歸零後連按")) {
+            zeroCount = 0
+            wasZero = false
         }
     }
 
@@ -691,6 +741,9 @@ class ScreenGuardService : AccessibilityService() {
 
         /** 連點：兩下之間最多隔多久還算同一串。 */
         private const val TAP_MAX_GAP_MS = 900L
+
+        /** 音量鍵是實體按鍵，按得比點螢幕慢，容許間隔放寬。 */
+        private const val VOL_GESTURE_GAP_MS = 2000L
         private const val TAP_WARN_AT = 3
         private const val TAP_TOGGLE_AT = 5
 
