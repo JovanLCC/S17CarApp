@@ -58,6 +58,7 @@ class ScreenGuardService : AccessibilityService() {
     private val lastLogAllAt = HashMap<String, Long>()
     private var tapCount = 0
     private var lastTapAt = 0L
+    private var tapToast: Toast? = null
 
     /** 這些 App 的畫面變化不算「使用者操作」（例如調音量時跳出來的音量條）。 */
     private val ignoredPackages = setOf(
@@ -398,14 +399,14 @@ class ScreenGuardService : AccessibilityService() {
         if (Prefs.diagnostic(this)) Logx.d("觸控偵測：第 $tapCount 下（$TAP_TOGGLE_AT 下切換）")
 
         val willEnable = !Prefs.enabled(this)
+        val what = if (willEnable) "開啟自動關螢幕" else "關閉自動關螢幕"
+        val remain = TAP_TOGGLE_AT - tapCount
+
         when {
-            tapCount == TAP_WARN_AT -> {
-                Toast.makeText(
-                    this,
-                    if (willEnable) "再點兩下就會啟用自動關螢幕" else "再點兩下就會停用自動關螢幕",
-                    Toast.LENGTH_SHORT
-                ).show()
-                // 從這下之後開始攔截，後兩下就不會誤點到底下的車機 UI
+            // 第三、四下：倒數提示，讓誤觸的人可以停手
+            tapCount in TAP_WARN_AT until TAP_TOGGLE_AT -> {
+                showToast(if (remain >= 2) "還有兩下 → $what" else "還有一次 → $what")
+                // 從第三下開始攔截，後兩下就不會誤點到底下的車機 UI
                 TouchWatcher.startBlocking(applicationContext)
                 handler.removeCallbacks(stopBlockingRunnable)
                 handler.postDelayed(stopBlockingRunnable, TAP_MAX_GAP_MS * 2)
@@ -417,17 +418,26 @@ class ScreenGuardService : AccessibilityService() {
                 TouchWatcher.stopBlocking(applicationContext)
                 Prefs.setEnabled(this, willEnable)
                 if (!willEnable) {
-                    cancel("使用者連點停用")
+                    cancel("使用者連點關閉")
                     BlackOverlay.hide(applicationContext, notify = false)
                 }
-                Logx.d("=== 連點五下 -> ${if (willEnable) "啟用" else "停用"}自動關螢幕 ===")
-                Toast.makeText(
-                    this,
-                    if (willEnable) "已啟用自動關螢幕" else "已停用自動關螢幕（再點五下恢復）",
-                    Toast.LENGTH_LONG
-                ).show()
+                Logx.d("=== 連點五下 -> ${if (willEnable) "開啟" else "關閉"}自動關螢幕 ===")
+                showToast(
+                    if (willEnable) "已開啟自動關螢幕" else "已關閉自動關螢幕（再連點五下開啟）",
+                    long = true
+                )
             }
         }
+    }
+
+    /**
+     * 連點的提示會連續跳，用同一個 Toast 並先取消上一個。
+     * 不然它們會排隊，第四下的提示要等第三下播完才出現，跟不上手速。
+     */
+    private fun showToast(msg: String, long: Boolean = false) {
+        tapToast?.cancel()
+        tapToast = Toast.makeText(this, msg, if (long) Toast.LENGTH_LONG else Toast.LENGTH_SHORT)
+            .also { it.show() }
     }
 
     private val stopBlockingRunnable = Runnable {
