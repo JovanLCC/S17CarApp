@@ -164,6 +164,7 @@ class ScreenGuardService : AccessibilityService() {
         }
         // 連點偵測要一直在，不能只有倒數期間才掛
         TouchWatcher.start(applicationContext)
+        StateDot.refresh(applicationContext, Prefs.enabled(this))
         lastScreenOnAt = SystemClock.uptimeMillis()
         runCatching {
             val pm = getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
@@ -190,6 +191,7 @@ class ScreenGuardService : AccessibilityService() {
         TouchWatcher.onTouch = null
         TouchWatcher.stopBlocking(applicationContext)
         TouchWatcher.stop(applicationContext)
+        StateDot.hide(applicationContext)
         handler.removeCallbacksAndMessages(null)
         Logx.d("=== 服務已中斷 ===")
     }
@@ -439,11 +441,14 @@ class ScreenGuardService : AccessibilityService() {
      * @return 是否已經切換（呼叫端要把自己的計數歸零）
      */
     private fun gestureProgress(count: Int, how: String): Boolean {
-        val willEnable = !Prefs.enabled(this)
-        val what = if (willEnable) "開啟自動關螢幕" else "關閉自動關螢幕"
+        val now = Prefs.enabled(this)
+        val willEnable = !now
+        val state = if (now) "🟢 目前：開啟中" else "🔴 目前：已關閉"
+        val what = if (willEnable) "開啟" else "關閉"
 
         if (count in TAP_WARN_AT until TAP_TOGGLE_AT) {
-            showToast(if (TAP_TOGGLE_AT - count >= 2) "還有兩下 → $what" else "還有一次 → $what")
+            val left = if (TAP_TOGGLE_AT - count >= 2) "還有兩下" else "還有一次"
+            showToast("$state\n$left 就會$what")
             return false
         }
         if (count < TAP_TOGGLE_AT) return false
@@ -452,9 +457,10 @@ class ScreenGuardService : AccessibilityService() {
         if (!willEnable) BlackOverlay.hide(applicationContext, notify = false)
         // 不管開或關，都不要讓觸發手勢的那幾下順便把螢幕關掉
         cancel("$how 切換")
+        StateDot.refresh(applicationContext, willEnable)
         Logx.d("=== $how -> ${if (willEnable) "開啟" else "關閉"}自動關螢幕 ===")
         showToast(
-            if (willEnable) "已開啟自動關螢幕" else "已關閉自動關螢幕（再做一次可開啟）",
+            if (willEnable) "🟢 已開啟自動關螢幕" else "🔴 已關閉自動關螢幕（再做一次可開啟）",
             long = true
         )
         return true
@@ -511,8 +517,14 @@ class ScreenGuardService : AccessibilityService() {
      */
     private fun showToast(msg: String, long: Boolean = false) {
         tapToast?.cancel()
-        tapToast = Toast.makeText(this, msg, if (long) Toast.LENGTH_LONG else Toast.LENGTH_SHORT)
-            .also { it.show() }
+        tapToast = null
+        // cancel() 之後「立刻」show()，有些 ROM 會把新的那個一起吞掉 ——
+        // 第 4、5 下之間只隔幾百毫秒，結果最重要的「已開啟／已關閉」最容易不見。
+        // 隔一個訊息迴圈再送就穩定了。
+        handler.postDelayed({
+            tapToast = Toast.makeText(this, msg, if (long) Toast.LENGTH_LONG else Toast.LENGTH_SHORT)
+                .also { it.show() }
+        }, 120)
     }
 
     private val stopBlockingRunnable = Runnable {

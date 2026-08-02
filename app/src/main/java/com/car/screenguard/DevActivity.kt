@@ -240,6 +240,10 @@ class DevActivity : Activity() {
         addSwitch(switches, "輪詢音量值（車機不送廣播時用）", Prefs.pollVolume(this)) { Prefs.setPollVolume(this, it) }
         addSwitch(switches, "備援：螢幕一亮就倒數（不管原因）", Prefs.triggerScreenOn(this)) { Prefs.setTriggerScreenOn(this, it) }
         addSwitch(switches, "倒數開始時顯示提示（除錯用）", Prefs.showToast(this)) { Prefs.setShowToast(this, it) }
+        addSwitch(switches, "角落顯示狀態圓點（綠＝開啟、紅＝關閉）", Prefs.showStateDot(this)) {
+            Prefs.setShowStateDot(this, it)
+            StateDot.refresh(applicationContext, Prefs.enabled(this))
+        }
         addSwitch(switches, "音量歸零後再按「−」五次切換啟用／停用", Prefs.volZeroToggle(this)) { Prefs.setVolZeroToggle(this, it) }
         addSwitch(switches, "螢幕連點五下切換啟用／停用", Prefs.tapToggle(this)) { Prefs.setTapToggle(this, it) }
         addSwitch(switches, "⚠ 有新畫面跳出時自動撤掉黑幕（倒車安全，不要關）", Prefs.dropOnNewWindow(this)) { Prefs.setDropOnNewWindow(this, it) }

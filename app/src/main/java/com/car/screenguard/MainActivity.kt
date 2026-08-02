@@ -102,6 +102,7 @@ class MainActivity : Activity() {
             Prefs.setEnabled(this, false)
             ScreenGuardService.instance?.cancel("使用者按停止")
             BlackOverlay.hide(applicationContext)
+            StateDot.refresh(applicationContext, false)
             Logx.d("=== 使用者按下停止 ===")
             toast("已停止")
             updateStatus()
@@ -151,7 +152,8 @@ class MainActivity : Activity() {
         Prefs.applyOfficialProfile(this)
         // 正式方案會把這項設成預設值，所以在後面照使用者勾選的狀態覆寫回去
         Prefs.setRequireScreenOffFirst(this, checkRequireOff.isChecked)
-        Logx.d("=== 開始使用：$sec 秒、方法 J 黑幕、音量條 ${Prefs.volumeEventPkg(this)}/${Prefs.volumeEventCls(this)} ===")
+        Logx.d("=== 開始使用：$sec 秒、方法 ${Prefs.method(this).code}、音量條 ${Prefs.volumeEventPkg(this)}/${Prefs.volumeEventCls(this)} ===")
+        StateDot.refresh(applicationContext, true)
 
         // 「更黑」要改系統亮度，缺權限的話順手帶去開，不擋住啟用流程
         if (Prefs.dimSystem(this) && !ScreenOff.canWriteSettings(this)) {
