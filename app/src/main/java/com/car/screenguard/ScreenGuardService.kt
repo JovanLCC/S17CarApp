@@ -395,6 +395,7 @@ class ScreenGuardService : AccessibilityService() {
         // 兩下間隔太久就重新算起
         tapCount = if (now - lastTapAt > TAP_MAX_GAP_MS) 1 else tapCount + 1
         lastTapAt = now
+        if (Prefs.diagnostic(this)) Logx.d("觸控偵測：第 $tapCount 下（$TAP_TOGGLE_AT 下切換）")
 
         val willEnable = !Prefs.enabled(this)
         when {

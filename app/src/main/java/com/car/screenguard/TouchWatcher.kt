@@ -86,8 +86,11 @@ object TouchWatcher {
         val wm = app.getSystemService(Context.WINDOW_SERVICE) as WindowManager
         val lp = WindowManager.LayoutParams(
             1, 1, overlayType(),
+            // 這裡千萬不能用 FLAG_NOT_TOUCHABLE：那會讓視窗從輸入系統整個消失，
+            // 連 ACTION_OUTSIDE 都收不到。正確組合是 NOT_TOUCH_MODAL + WATCH_OUTSIDE_TOUCH：
+            // 視窗只有 1×1 像素、擋不到什麼，但碰到它以外的地方就會收到 ACTION_OUTSIDE。
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or   // 不擋使用者操作
+                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
                 WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH or
                 WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             PixelFormat.TRANSLUCENT
@@ -95,13 +98,17 @@ object TouchWatcher {
 
         val v = View(app).apply {
             setOnTouchListener { _, e ->
-                if (e.action == MotionEvent.ACTION_OUTSIDE) onTouch?.invoke()
+                // 碰到別的地方＝ACTION_OUTSIDE；碰到這 1 像素本身＝ACTION_DOWN，兩種都算
+                if (e.action == MotionEvent.ACTION_OUTSIDE || e.action == MotionEvent.ACTION_DOWN) {
+                    onTouch?.invoke()
+                }
                 false
             }
         }
         runCatching {
             wm.addView(v, lp)
             view = v
+            Logx.d("觸控偵測已啟動")
         }.onFailure { Logx.d("觸控偵測啟動失敗：${it.message}") }
     }
 
