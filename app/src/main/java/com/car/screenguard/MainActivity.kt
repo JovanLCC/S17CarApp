@@ -3,26 +3,28 @@ package com.car.screenguard
 import android.app.Activity
 import android.content.ComponentName
 import android.content.Intent
+import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
 import android.provider.Settings
 import android.widget.Button
-import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
 
 /**
- * 一般使用的主畫面：設定秒數、按開始使用，就這樣。
- * 12 種關螢幕方法、掃描工具、細項設定與事件記錄都在 [DevActivity]。
+ * 開車時要用的主畫面：全黑、上半部兩顆大按鈕、下半部才是設定與工具。
+ * 詳細設定、12 種關螢幕方法與事件記錄都在 [DevActivity]。
  */
 class MainActivity : Activity() {
 
     private lateinit var status: TextView
     private lateinit var editSec: EditText
-    private lateinit var checkRequireOff: CheckBox
-    private lateinit var checkDimSystem: CheckBox
+    private lateinit var btnStart: Button
+    private lateinit var btnStop: Button
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -31,7 +33,16 @@ class MainActivity : Activity() {
 
         status = findViewById(R.id.statusSimple)
         editSec = findViewById(R.id.editSec)
+        btnStart = findViewById(R.id.btnStart)
+        btnStop = findViewById(R.id.btnStop)
         editSec.setText((Prefs.getDelayMillis(this) / 1000).toString())
+
+        btnStart.setOnClickListener { start() }
+        btnStop.setOnClickListener {
+            NotifyToggle.applyEnabled(this, false, "主畫面按下停止")
+            toast("已停止")
+            updateStatus()
+        }
 
         findViewById<Button>(R.id.btnRecordTaps).setOnClickListener {
             val svc = ScreenGuardService.instance
@@ -40,73 +51,30 @@ class MainActivity : Activity() {
                 return@setOnClickListener
             }
             toast("待會畫面會蓋一層半透明，照上面的指示點兩下")
-            // 讓 App 退到背景，這樣點的才是車機畫面
-            moveTaskToBack(true)
-            android.os.Handler(mainLooper).postDelayed({
-                TapRecorder.start(applicationContext, svc) { msg ->
-                    Logx.d("側錄結果：$msg")
-                }
+            moveTaskToBack(true)   // 退到背景，點到的才是車機畫面
+            Handler(mainLooper).postDelayed({
+                TapRecorder.start(applicationContext, svc) { msg -> Logx.d("側錄結果：$msg") }
             }, 700)
         }
 
         findViewById<Button>(R.id.btnTestTaps).setOnClickListener {
             if (!Prefs.tapsRecorded(this)) {
-                toast("還沒側錄，請先按上面那顆")
+                toast("還沒側錄，請先按左邊那顆")
                 return@setOnClickListener
             }
             moveTaskToBack(true)
-            android.os.Handler(mainLooper).postDelayed({
+            Handler(mainLooper).postDelayed({
                 ScreenOff.run(this, LockMethod.SIMULATE_TAP) { }
             }, 700)
-        }
-
-        checkDimSystem = findViewById(R.id.checkDimSystem)
-        checkDimSystem.isChecked = Prefs.dimSystem(this)
-        checkDimSystem.setOnCheckedChangeListener { _, c ->
-            Prefs.setDimSystem(this, c)
-            Logx.d("設定變更：連系統亮度一起壓到 0 = $c")
-            if (c && !ScreenOff.canWriteSettings(this)) {
-                toast("需要「修改系統設定」權限，我帶你去開")
-                if (Build.VERSION.SDK_INT >= 23) {
-                    runCatching {
-                        startActivity(
-                            Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:$packageName"))
-                        )
-                    }
-                }
-            }
-        }
-
-        checkRequireOff = findViewById(R.id.checkRequireOff)
-        checkRequireOff.isChecked = Prefs.requireScreenOffFirst(this)
-        checkRequireOff.setOnCheckedChangeListener { _, c ->
-            Prefs.setRequireScreenOffFirst(this, c)
-            Logx.d("設定變更：必須先按過關閉螢幕 = $c")
-            updateStatus()
-        }
-
-        findViewById<Button>(R.id.btnStart).setOnClickListener { start() }
-
-        findViewById<Button>(R.id.btnDarkNow).setOnClickListener {
-            if (!ScreenOff.canDrawOverlay(this)) {
-                toast("需要「顯示在其他應用程式上層」權限才能變黑")
-                return@setOnClickListener
-            }
-            Logx.d("【手動】使用者按下立刻變黑")
-            ScreenOff.run(this, LockMethod.BLACK_OVERLAY) { r ->
-                if (!r.ok) toast("變黑失敗：${r.msg}")
-            }
-        }
-
-        findViewById<Button>(R.id.btnStop).setOnClickListener {
-            NotifyToggle.applyEnabled(this, false, "主畫面按下停止")
-            toast("已停止")
-            updateStatus()
         }
 
         findViewById<Button>(R.id.btnDev).setOnClickListener {
             startActivity(Intent(this, DevActivity::class.java))
         }
+
+        styleSecondary(findViewById(R.id.btnRecordTaps))
+        styleSecondary(findViewById(R.id.btnTestTaps))
+        styleSecondary(findViewById(R.id.btnDev))
     }
 
     override fun onResume() {
@@ -128,12 +96,12 @@ class MainActivity : Activity() {
 
         // 缺哪個權限就直接把使用者帶到那一頁，不要只丟訊息
         if (!isAccessibilityEnabled()) {
-            toast("請在清單裡找到「車機螢幕守衛」並開啟，然後回到這裡再按一次開始使用")
+            toast("請在清單裡找到「車機螢幕守衛」並開啟，然後回到這裡再按一次啟用")
             runCatching { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
             return
         }
         if (!ScreenOff.canDrawOverlay(this)) {
-            toast("請允許「顯示在其他應用程式上層」，然後回到這裡再按一次開始使用")
+            toast("請允許「顯示在其他應用程式上層」，然後回到這裡再按一次啟用")
             if (Build.VERSION.SDK_INT >= 23) {
                 runCatching {
                     startActivity(
@@ -146,53 +114,52 @@ class MainActivity : Activity() {
 
         Prefs.setDelayMillis(this, sec * 1000)
         Prefs.applyOfficialProfile(this)
-        // 正式方案會把這項設成預設值，所以在後面照使用者勾選的狀態覆寫回去
-        Prefs.setRequireScreenOffFirst(this, checkRequireOff.isChecked)
-        Logx.d("=== 開始使用：$sec 秒、方法 ${Prefs.method(this).code}、音量條 ${Prefs.volumeEventPkg(this)}/${Prefs.volumeEventCls(this)} ===")
-        NotifyToggle.applyEnabled(this, true, "主畫面開始使用")
-
-        // 「更黑」要改系統亮度，缺權限的話順手帶去開，不擋住啟用流程
-        if (Prefs.dimSystem(this) && !ScreenOff.canWriteSettings(this)) {
-            toast("已開始使用。「更黑」還需要「修改系統設定」權限，我帶你去開")
-            if (Build.VERSION.SDK_INT >= 23) {
-                runCatching {
-                    startActivity(
-                        Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:$packageName"))
-                    )
-                }
-            }
-        } else {
-            toast("已開始使用，可以關掉 App 了")
-        }
+        Logx.d("=== 啟用：$sec 秒、方法 ${Prefs.method(this).code} ===")
+        NotifyToggle.applyEnabled(this, true, "主畫面按下啟用")
+        toast("已啟用，可以關掉 App 了")
         updateStatus()
+    }
+
+    // === 外觀 ===
+
+    /** 黑底、只用外框顏色表示狀態，夜間不刺眼。 */
+    private fun border(color: Int, width: Int = 6) = GradientDrawable().apply {
+        setColor(Color.BLACK)
+        setStroke(width, color)
+        cornerRadius = 18f
+    }
+
+    private fun styleSecondary(b: Button) {
+        b.background = border(GRAY, 3)
+        b.setTextColor(GRAY_TEXT)
+        b.isAllCaps = false
     }
 
     private fun updateStatus() {
         val acc = isAccessibilityEnabled()
         val overlay = ScreenOff.canDrawOverlay(this)
         val on = Prefs.enabled(this)
+
+        // 目前狀態那顆亮色，另一顆灰掉
+        btnStart.background = border(if (on) GREEN else GRAY)
+        btnStart.setTextColor(if (on) GREEN else GRAY_TEXT)
+        btnStop.background = border(if (on) GRAY else RED)
+        btnStop.setTextColor(if (on) GRAY_TEXT else RED)
+
         val sec = Prefs.getDelayMillis(this) / 1000
-        val gate = Prefs.requireScreenOffFirst(this)
-        val screenState = ScreenGuardService.instance?.screenStateText() ?: "未知"
         status.text = when {
-            !acc -> "❌ 尚未啟用無障礙服務\n按「開始使用」我會帶你去開"
-            !overlay -> "❌ 尚未允許顯示在其他 App 上層\n按「開始使用」我會帶你去開"
-            !on -> "⏸ 已停止\n按「開始使用」重新啟用"
+            !acc -> "❌ 尚未啟用無障礙服務，按「啟用」我帶你去開"
+            !overlay -> "❌ 尚未允許顯示在其他 App 上層，按「啟用」我帶你去開"
             else -> buildString {
-                append("✅ 運作中\n")
-                append(if (gate) "螢幕原本關閉、被音量喚醒後" else "調整音量後")
-                append(" $sec 秒沒有其他操作就關螢幕。\n")
-                append("方式：")
-                if (Prefs.method(this@MainActivity) == LockMethod.SIMULATE_TAP) {
-                    val (x1, y1) = Prefs.tap1(this@MainActivity)
-                    val (x2, y2) = Prefs.tap2(this@MainActivity)
-                    append("模擬點擊 ($x1,$y1) → ($x2,$y2)")
-                } else {
-                    append("黑幕（尚未側錄點擊位置）")
-                }
-                append("\n\nAndroid 看到的螢幕狀態：").append(screenState)
+                append(if (on) "運作中：" else "已停止：")
+                append("調整音量後 $sec 秒沒操作就關螢幕　方式 ")
+                append(
+                    if (Prefs.method(this@MainActivity) == LockMethod.SIMULATE_TAP)
+                        "模擬點擊" else "黑幕（尚未側錄）"
+                )
             }
         }
+        status.setTextColor(if (!acc || !overlay) RED else GRAY_TEXT)
     }
 
     private fun isAccessibilityEnabled(): Boolean {
@@ -204,4 +171,11 @@ class MainActivity : Activity() {
     }
 
     private fun toast(msg: String) = Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
+
+    private companion object {
+        const val GREEN = 0xFF00E676.toInt()
+        const val RED = 0xFFFF5252.toInt()
+        const val GRAY = 0xFF424242.toInt()
+        const val GRAY_TEXT = 0xFF9E9E9E.toInt()
+    }
 }

@@ -1,168 +1,126 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<!--
+  開車時要操作的畫面：全黑背景、上半部兩顆大按鈕（目標大、不必瞄準），
+  下半部才是設定類的小按鈕。按鈕本身也是黑底，只靠外框顏色表示狀態，
+  夜間不會有大片亮色刺眼。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="#000000"
+    android:orientation="vertical"
+    android:padding="10dp">
 
-    <LinearLayout
+    <TextView
+        android:id="@+id/statusSimple"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="24dp">
+        android:paddingBottom="6dp"
+        android:textColor="#9E9E9E"
+        android:textSize="13sp"
+        android:text="狀態載入中…" />
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="車機螢幕守衛"
-            android:textSize="26sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            android:textSize="15sp"
-            android:text="調整音量後，若沒有其他操作，就把螢幕變黑。中途碰到螢幕就不會變黑。" />
-
-        <TextView
-            android:id="@+id/statusSimple"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            android:padding="12dp"
-            android:background="#11000000"
-            android:textSize="17sp"
-            android:text="狀態載入中…" />
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="幾秒後變黑："
-                android:textSize="19sp" />
-
-            <EditText
-                android:id="@+id/editSec"
-                android:layout_width="90dp"
-                android:layout_height="wrap_content"
-                android:inputType="number"
-                android:singleLine="true"
-                android:textSize="19sp"
-                android:text="5" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="秒"
-                android:textSize="19sp" />
-        </LinearLayout>
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            android:text="關螢幕的方式"
-            android:textSize="17sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:textSize="13sp"
-            android:text="側錄之後就改用「模擬點擊」：由 App 幫你按車機的輔助球去關螢幕，背光是真的關掉，比黑幕暗，也不會擋到倒車顯影。沒側錄的話才用黑幕。" />
-
-        <Button
-            android:id="@+id/btnRecordTaps"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            android:padding="14dp"
-            android:text="側錄關螢幕的點擊位置"
-            android:textSize="17sp" />
-
-        <Button
-            android:id="@+id/btnTestTaps"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="測試：立刻模擬點擊一次" />
-
-        <CheckBox
-            android:id="@+id/checkDimSystem"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:text="更黑：連系統亮度一起壓到 0"
-            android:textSize="17sp" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
-            android:textSize="13sp"
-            android:text="LCD 的背光不會因為畫面全黑就關掉，所以黑幕晚上看起來還是灰灰的。勾這項會在蓋黑幕時把系統亮度也降到 0，解除時自動還原。需要「修改系統設定」權限。" />
-
-        <CheckBox
-            android:id="@+id/checkRequireOff"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:text="只有「調音量前螢幕是關閉的」才變黑"
-            android:textSize="17sp" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
-            android:textSize="13sp"
-            android:text="預設不勾（＝調音量就變黑）。勾選後只有螢幕原本關閉、被音量鍵喚醒那一次才蓋黑幕，看地圖時調音量不會有動作。注意：這台車機按關閉螢幕只是切背光，Android 看不到，所以要先在「開發者設定 → ④ 進階觸發」填好關閉螢幕按鈕的事件特徵，這個勾選才有意義。" />
-
-        <Button
-            android:id="@+id/btnDarkNow"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:padding="12dp"
-            android:text="立刻變黑（進入暗模式）"
-            android:textSize="17sp" />
+    <!-- ===== 上半部 7 成：啟用／停止 ===== -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="7"
+        android:orientation="horizontal">
 
         <Button
             android:id="@+id/btnStart"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            android:padding="18dp"
-            android:text="開始使用"
-            android:textSize="20sp"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:layout_margin="6dp"
+            android:text="啟用"
+            android:textSize="34sp"
             android:textStyle="bold" />
 
         <Button
             android:id="@+id/btnStop"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:padding="10dp"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:layout_margin="6dp"
             android:text="停止"
-            android:textSize="16sp" />
+            android:textSize="34sp"
+            android:textStyle="bold" />
+    </LinearLayout>
 
-        <TextView
+    <!-- ===== 下半部 3 成：設定與工具 ===== -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="3"
+        android:orientation="vertical">
+
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            android:textSize="13sp"
-            android:text="開始使用後就可以關掉這個 App，它會在背景繼續運作。\n\n開車途中要臨時讓螢幕一直亮著（例如在不熟的路上看地圖）：往下滑開通知欄，裡面有常駐的「開啟／關閉」按鈕，通知標題也會顯示目前狀態。" />
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="6dp"
+            android:paddingEnd="6dp">
 
-        <Button
-            android:id="@+id/btnDev"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:text="開發者設定"
-            android:textSize="13sp" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="沒操作幾秒後關螢幕："
+                android:textColor="#BDBDBD"
+                android:textSize="15sp" />
 
+            <EditText
+                android:id="@+id/editSec"
+                android:layout_width="70dp"
+                android:layout_height="wrap_content"
+                android:inputType="number"
+                android:singleLine="true"
+                android:textColor="#FFFFFF"
+                android:textSize="17sp"
+                android:text="5" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:text="秒（按「啟用」後生效）"
+                android:textColor="#757575"
+                android:textSize="13sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btnRecordTaps"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:layout_margin="6dp"
+                android:text="側錄關螢幕位置"
+                android:textSize="15sp" />
+
+            <Button
+                android:id="@+id/btnTestTaps"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:layout_margin="6dp"
+                android:text="測試模擬點擊"
+                android:textSize="15sp" />
+
+            <Button
+                android:id="@+id/btnDev"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:layout_margin="6dp"
+                android:text="開發者模式"
+                android:textSize="15sp" />
+        </LinearLayout>
     </LinearLayout>
-</ScrollView>
+</LinearLayout>
