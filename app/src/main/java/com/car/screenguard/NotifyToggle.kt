@@ -6,7 +6,9 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.graphics.Color
 import android.os.Build
+import android.widget.RemoteViews
 
 /**
  * 通知欄的開關。
@@ -21,6 +23,7 @@ object NotifyToggle {
 
     private const val CHANNEL_ID = "screenguard_toggle"
     private const val NOTIFY_ID = 1001
+    private val GRAY_TEXT = 0xFF9E9E9E.toInt()
 
     /** 依目前狀態畫出（或更新）通知。 */
     fun show(c: Context) {
@@ -38,22 +41,26 @@ object NotifyToggle {
         else
             @Suppress("DEPRECATION") Notification.Builder(app)
 
-        val n = builder
+        builder
             .setSmallIcon(android.R.drawable.ic_lock_idle_lock)
             .setContentTitle(if (enabled) "自動關螢幕：開啟中" else "自動關螢幕：已關閉")
-            .setContentText(
-                if (enabled) "調整音量後沒操作就會關螢幕"
-                else "螢幕會一直亮著（適合看導航）"
-            )
+            .setContentText(if (enabled) "調整音量後沒操作就會關螢幕" else "螢幕會一直亮著")
             .setOngoing(true)          // 不能滑掉，隨時都在
             .setShowWhen(false)
             .setContentIntent(activityIntent(app))
+            // 自訂版面若在某些 ROM 上畫不出來，至少展開後還有這兩顆系統按鈕可按
             .addAction(action(app, ACTION_ENABLE, "開啟"))
             .addAction(action(app, ACTION_DISABLE, "關閉"))
             .also { if (Build.VERSION.SDK_INT >= 21) it.setVisibility(Notification.VISIBILITY_PUBLIC) }
-            .build()
 
-        runCatching { nm.notify(NOTIFY_ID, n) }
+        // 收合狀態就要有大按鈕：標準動作按鈕得展開才看得到、大小也不能改，只能自己畫
+        runCatching {
+            val rv = bigButtons(app, enabled)
+            builder.setCustomContentView(rv)
+            builder.setCustomBigContentView(rv)
+        }.onFailure { Logx.d("自訂通知版面失敗，改用標準樣式：${it.message}") }
+
+        runCatching { nm.notify(NOTIFY_ID, builder.build()) }
             .onFailure { Logx.d("通知欄開關顯示失敗：${it.message}") }
     }
 
@@ -76,6 +83,29 @@ object NotifyToggle {
         Logx.d("=== $how -> ${if (enabled) "開啟" else "關閉"}自動關螢幕 ===")
     }
 
+    /** 兩顆撐滿高度的大按鈕；目前狀態那顆填深色配黑字，跟主畫面同一套視覺。 */
+    private fun bigButtons(c: Context, enabled: Boolean): RemoteViews {
+        val rv = RemoteViews(c.packageName, R.layout.notif_toggle)
+        rv.setTextViewText(
+            R.id.notifTitle,
+            if (enabled) "自動關螢幕\n開啟中" else "自動關螢幕\n已關閉"
+        )
+        rv.setInt(
+            R.id.notifOn, "setBackgroundResource",
+            if (enabled) R.drawable.notif_btn_green else R.drawable.notif_btn_gray
+        )
+        rv.setTextColor(R.id.notifOn, if (enabled) Color.BLACK else GRAY_TEXT)
+        rv.setInt(
+            R.id.notifOff, "setBackgroundResource",
+            if (enabled) R.drawable.notif_btn_gray else R.drawable.notif_btn_red
+        )
+        rv.setTextColor(R.id.notifOff, if (enabled) GRAY_TEXT else Color.BLACK)
+
+        rv.setOnClickPendingIntent(R.id.notifOn, broadcast(c, ACTION_ENABLE))
+        rv.setOnClickPendingIntent(R.id.notifOff, broadcast(c, ACTION_DISABLE))
+        return rv
+    }
+
     private fun ensureChannel(nm: NotificationManager) {
         if (Build.VERSION.SDK_INT < 26) return
         val ch = NotificationChannel(
@@ -89,13 +119,15 @@ object NotifyToggle {
         runCatching { nm.createNotificationChannel(ch) }
     }
 
+    private fun broadcast(c: Context, action: String): PendingIntent = PendingIntent.getBroadcast(
+        c,
+        action.hashCode(),
+        Intent(c, ToggleReceiver::class.java).setAction(action),
+        pendingFlags()
+    )
+
     private fun action(c: Context, action: String, label: String): Notification.Action {
-        val pi = PendingIntent.getBroadcast(
-            c,
-            action.hashCode(),
-            Intent(c, ToggleReceiver::class.java).setAction(action),
-            pendingFlags()
-        )
+        val pi = broadcast(c, action)
         return if (Build.VERSION.SDK_INT >= 23)
             Notification.Action.Builder(null as android.graphics.drawable.Icon?, label, pi).build()
         else

@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  通知欄的自訂版面。
+  標準通知的動作按鈕只有展開後才看得到、大小也不能改，
+  所以整條通知自己畫：收合狀態就是兩顆大按鈕，開車時直接按得到。
+  收合區高度上限 64dp，這裡就把按鈕撐滿它。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="64dp"
+    android:background="#000000"
+    android:orientation="horizontal"
+    android:padding="4dp">
+
+    <TextView
+        android:id="@+id/notifTitle"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1.1"
+        android:gravity="center_vertical"
+        android:paddingStart="8dp"
+        android:paddingEnd="4dp"
+        android:textColor="#BDBDBD"
+        android:textSize="13sp"
+        android:text="自動關螢幕" />
+
+    <TextView
+        android:id="@+id/notifOn"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:layout_marginStart="3dp"
+        android:layout_marginEnd="3dp"
+        android:background="@drawable/notif_btn_gray"
+        android:gravity="center"
+        android:textColor="#9E9E9E"
+        android:textSize="22sp"
+        android:textStyle="bold"
+        android:text="開啟" />
+
+    <TextView
+        android:id="@+id/notifOff"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:layout_marginStart="3dp"
+        android:layout_marginEnd="3dp"
+        android:background="@drawable/notif_btn_gray"
+        android:gravity="center"
+        android:textColor="#9E9E9E"
+        android:textSize="22sp"
+        android:textStyle="bold"
+        android:text="關閉" />
+</LinearLayout>
