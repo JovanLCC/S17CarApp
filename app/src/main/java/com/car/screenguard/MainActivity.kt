@@ -122,10 +122,17 @@ class MainActivity : Activity() {
 
     // === 外觀 ===
 
-    /** 黑底、只用外框顏色表示狀態，夜間不刺眼。 */
+    /** 未選中：黑底＋灰框。 */
     private fun border(color: Int, width: Int = 6) = GradientDrawable().apply {
         setColor(Color.BLACK)
         setStroke(width, color)
+        cornerRadius = 18f
+    }
+
+    /** 目前狀態那顆：填滿深色底，配黑字，開車時一眼就分得出來。 */
+    private fun filled(bg: Int) = GradientDrawable().apply {
+        setColor(bg)
+        setStroke(6, bg)
         cornerRadius = 18f
     }
 
@@ -140,11 +147,11 @@ class MainActivity : Activity() {
         val overlay = ScreenOff.canDrawOverlay(this)
         val on = Prefs.enabled(this)
 
-        // 目前狀態那顆亮色，另一顆灰掉
-        btnStart.background = border(if (on) GREEN else GRAY)
-        btnStart.setTextColor(if (on) GREEN else GRAY_TEXT)
-        btnStop.background = border(if (on) GRAY else RED)
-        btnStop.setTextColor(if (on) GRAY_TEXT else RED)
+        // 目前狀態那顆填滿深色＋黑字，另一顆只留灰框
+        btnStart.background = if (on) filled(GREEN_DARK) else border(GRAY)
+        btnStart.setTextColor(if (on) Color.BLACK else GRAY_TEXT)
+        btnStop.background = if (on) border(GRAY) else filled(RED_DARK)
+        btnStop.setTextColor(if (on) GRAY_TEXT else Color.BLACK)
 
         val sec = Prefs.getDelayMillis(this) / 1000
         status.text = when {
@@ -173,8 +180,10 @@ class MainActivity : Activity() {
     private fun toast(msg: String) = Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
 
     private companion object {
-        const val GREEN = 0xFF00E676.toInt()
-        const val RED = 0xFFFF5252.toInt()
+        // 深色底配黑字：夜間不刺眼，但飽和度夠、開車時掃一眼就分得出來
+        const val GREEN_DARK = 0xFF2E7D32.toInt()
+        const val RED_DARK = 0xFFC62828.toInt()
+        const val RED = 0xFFFF5252.toInt()      // 狀態列的警告字
         const val GRAY = 0xFF424242.toInt()
         const val GRAY_TEXT = 0xFF9E9E9E.toInt()
     }
