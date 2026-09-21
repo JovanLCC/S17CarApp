@@ -115,7 +115,7 @@ object Prefs {
      * 全程都認為螢幕是亮的，這個條件在這台永遠不成立。要用的話得先在開發者頁
      * 填好「關閉螢幕按鈕」的畫面事件特徵（見 [screenOffEventPkg]）。
      */
-    fun requireScreenOffFirst(c: Context) = sp(c).getBoolean(KEY_REQUIRE_SCREEN_OFF, false)
+    fun requireScreenOffFirst(c: Context) = sp(c).getBoolean(KEY_REQUIRE_SCREEN_OFF, true)
     fun setRequireScreenOffFirst(c: Context, v: Boolean) =
         sp(c).edit().putBoolean(KEY_REQUIRE_SCREEN_OFF, v).apply()
 
@@ -295,7 +295,8 @@ object Prefs {
      */
     fun applyOfficialProfile(c: Context) {
         // 側錄過就用模擬點擊（真的關背光），沒有的話才退回黑幕
-        val method = if (tapsRecorded(c)) LockMethod.SIMULATE_TAP else LockMethod.BLACK_OVERLAY
+        // 有側錄就用「黑幕＋懸浮球」（最黑也看不到選單閃），沒側錄才退回純黑幕
+        val method = if (tapsRecorded(c)) LockMethod.OVERLAY_THEN_TAP else LockMethod.BLACK_OVERLAY
         sp(c).edit()
             .putBoolean(KEY_ENABLED, true)
             .putString(KEY_METHOD, method.name)
@@ -306,8 +307,9 @@ object Prefs {
             .putBoolean(KEY_AUTO_REDARK, false)         // 點掉黑幕後就讓你用，下次按音量再黑
             .putBoolean(KEY_DIAGNOSTIC, false)
             .putBoolean(KEY_TOAST, false)
-            // 這台車機的關閉螢幕 Android 看不到，所以正式方案不開這個條件
-            .putBoolean(KEY_REQUIRE_SCREEN_OFF, false)
+            // 方法執行成功時程式會自己記下「螢幕變暗了」，
+            // 所以這個條件現在在車機上也成立了：只有音量噴醒的那次才關
+            .putBoolean(KEY_REQUIRE_SCREEN_OFF, true)
             .putString(KEY_VOL_EVENT_PKG, "com.ts.MainUI")
             .putString(KEY_VOL_EVENT_CLS, "SeekBar")
             .apply()
@@ -317,7 +319,7 @@ object Prefs {
     /** 目前設定是不是就是正式方案。 */
     fun isOfficialProfile(c: Context): Boolean =
         enabled(c) &&
-            (method(c) == LockMethod.BLACK_OVERLAY || method(c) == LockMethod.SIMULATE_TAP) &&
+            method(c) != LockMethod.ACC_LOCK && method(c) != LockMethod.ADMIN_LOCK &&
             triggerVolume(c) &&
             !triggerScreenOn(c) && !diagnostic(c) &&
             volumeEventPkg(c).isNotEmpty() && volumeEventCls(c).isNotEmpty()

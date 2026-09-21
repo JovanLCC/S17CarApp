@@ -47,7 +47,8 @@ enum class LockMethod(
     // 會自動把方法切成 K，那時它自己會重新出現在清單裡
     CUSTOM_BROADCAST("K", "自訂廣播（下面欄位輸入 action）", retired = true),
     CLICK_CAR_BUTTON("M", "點擊車機的關螢幕按鈕（靠節點）"),
-    SIMULATE_TAP("N", "模擬點擊側錄位置（正式方案）");
+    SIMULATE_TAP("N", "模擬點擊側錄位置"),
+    OVERLAY_THEN_TAP("O", "先蓋黑幕，再用懸浮球關螢幕");
 
     override fun toString() = "$code. $label"
 }
@@ -193,6 +194,33 @@ object ScreenOff {
         LockMethod.SIMULATE_TAP ->
             ScreenGuardService.instance?.playRecordedTaps()
                 ?: LockResult(false, "無障礙服務尚未啟用")
+
+        LockMethod.OVERLAY_THEN_TAP -> overlayThenTap(app)
+    }
+
+    /**
+     * 先蓋黑幕再去點懸浮球。
+     *
+     * 黑幕先上，展開選單那一瞬的亮畫面就看不到了；
+     * 萬一點不到球，至少還是黑的。
+     * 點擊期間黑幕必須穿透，不然 dispatchGesture 會被黑幕接走。
+     */
+    private fun overlayThenTap(app: Context): LockResult {
+        val svc = ScreenGuardService.instance ?: return LockResult(false, "無障礙服務尚未啟用")
+        if (!canDrawOverlay(app)) return LockResult(false, "缺少「顯示在其他應用程式上層」權限")
+        if (!Prefs.tapsRecorded(app)) return LockResult(false, "還沒側錄點擊位置")
+
+        val shown = BlackOverlay.show(app, passThrough = true)
+        if (!shown.ok) return shown
+        // 黑幕若已經在顯示（第二次以後），show 會直接返回，沒機會套到穿透，
+        // 這裡補一次，不然點擊會被黑幕接走
+        BlackOverlay.setPassThrough(app, true)
+
+        // 等黑幕真的畫上去再點，不然還是會看到選單閃一下
+        main.postDelayed({ svc.playRecordedTaps() }, 250)
+        // 兩下點完之後把觸控還給黑幕，使用者才點得掉它
+        main.postDelayed({ BlackOverlay.setPassThrough(app, false) }, 250 + Prefs.tapGap(app) + 1200)
+        return LockResult(true, "已蓋黑幕並排定點擊懸浮球")
     }
 
     // === 工具 ===

@@ -88,7 +88,11 @@ class ScreenGuardService : AccessibilityService() {
         }
         Logx.d("倒數結束 -> 執行關螢幕方法 ${method.code}")
         suppressUntil = SystemClock.uptimeMillis() + 4000
-        ScreenOff.run(this, method) { }
+        ScreenOff.run(this, method) { r ->
+            // 是我們自己關的，所以不必等 Android 的 SCREEN_OFF（這台永遠不會來）就能
+            // 記下「螢幕現在是暗的」—— 下一次音量事件才算得上是音量把它噴醒的
+            if (r.ok) setDarkMode(true, "已執行方法 ${method.code} 關螢幕")
+        }
     }
 
     private val reassertRunnable = Runnable {
@@ -425,8 +429,10 @@ class ScreenGuardService : AccessibilityService() {
         // 手勢判斷要放在所有 return 之前：停用狀態下也得認得出「再做一次」要重新開啟
         if (value != null) checkVolumeZeroGesture(value)
 
-        // 已經是黑幕了就什麼都不用做，不再開一輪倒數
-        if (BlackOverlay.isShowing()) {
+        // 純黑幕（J）已經蓋著就不必再來一次。
+        // 但方法 O 不同：黑幕雖然還在，背光已經被音量噴醒，
+        // 要再點一次懸浮球把背光關掉，所以要放行。
+        if (BlackOverlay.isShowing() && Prefs.method(this) != LockMethod.OVERLAY_THEN_TAP) {
             if (Prefs.reassertOnVolume(this)) {
                 handler.removeCallbacks(reassertRunnable)
                 handler.postDelayed(reassertRunnable, 400)
@@ -449,8 +455,7 @@ class ScreenGuardService : AccessibilityService() {
 
         // 只在「調音量之前螢幕本來是關的」才動作
         if (Prefs.requireScreenOffFirst(this) && !wokenByThisVolume()) {
-            val lit = (SystemClock.uptimeMillis() - lastScreenOnAt) / 1000
-            Logx.d("調音量前螢幕本來就是亮的（已亮 $lit 秒、非暗模式）-> 不理這次音量")
+            Logx.d("這次螢幕不是被音量噴醒的（螢幕本來就亮著）-> 不關螢幕也不蓋黑幕")
             return
         }
         arm("音量變化")
@@ -896,7 +901,7 @@ class ScreenGuardService : AccessibilityService() {
         const val VOLUME_CHANGED_ACTION = "android.media.VOLUME_CHANGED_ACTION"
 
         /** 螢幕亮起後多久內的音量事件，還算是「這次音量把螢幕喚醒的」。 */
-        private const val WAKE_GRACE_MS = 4000L
+        private const val WAKE_GRACE_MS = 5000L
 
         /** 連點：兩下之間最多隔多久還算同一串。 */
         private const val TAP_MAX_GAP_MS = 900L

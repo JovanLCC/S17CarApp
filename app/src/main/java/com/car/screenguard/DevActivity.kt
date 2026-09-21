@@ -303,7 +303,7 @@ class DevActivity : Activity() {
         addSwitch(switches, "螢幕連點五下切換（不好用）", Prefs.tapToggle(this), retired = true) { Prefs.setTapToggle(this, it) }
         addSwitch(switches, "⚠ 有新畫面跳出時自動撤掉黑幕（只影響方法 J）", Prefs.dropOnNewWindow(this), retired = true) { Prefs.setDropOnNewWindow(this, it) }
         addSwitch(switches, "蓋黑幕時連系統亮度一起壓到 0（實測沒差）", Prefs.dimSystem(this), retired = true) { Prefs.setDimSystem(this, it) }
-        addSwitch(switches, "只有調音量前螢幕是關閉的才變黑", Prefs.requireScreenOffFirst(this), retired = true) { Prefs.setRequireScreenOffFirst(this, it) }
+        addSwitch(switches, "只有「這次螢幕是被音量噴醒的」才關螢幕", Prefs.requireScreenOffFirst(this)) { Prefs.setRequireScreenOffFirst(this, it) }
         addSwitch(switches, "黑幕被點掉後，沒操作就自動再黑（方法 J 專用）", Prefs.autoRedark(this), retired = true) { Prefs.setAutoRedark(this, it) }
         addSwitch(switches, "診斷模式：記錄車機所有動靜（找音量訊號用）", Prefs.diagnostic(this)) { Prefs.setDiagnostic(this, it) }
         addSwitch(switches, "全事件模式：連畫面內容變化／觸控／按鍵放開都記（很吵）", Prefs.logEverything(this)) {

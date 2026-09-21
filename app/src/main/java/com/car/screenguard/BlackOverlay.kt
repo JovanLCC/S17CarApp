@@ -37,8 +37,29 @@ object BlackOverlay {
         show(app)
     }
 
+    /**
+     * 讓黑幕暫時不吃觸控。
+     *
+     * 先蓋黑幕再去點懸浮球時必須這樣做 ——
+     * 黑幕是最上層的可觸控視窗，dispatchGesture 會被它接走，
+     * 球根本收不到那一下（而且黑幕會把自己關掉）。
+     */
+    fun setPassThrough(app: Context, on: Boolean) {
+        val v = view ?: return
+        val lp = v.layoutParams as? WindowManager.LayoutParams ?: return
+        lp.flags = if (on)
+            lp.flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+        else
+            lp.flags and WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE.inv()
+        runCatching {
+            (app.getSystemService(Context.WINDOW_SERVICE) as WindowManager).updateViewLayout(v, lp)
+            Logx.d("黑幕觸控：${if (on) "穿透（讓點擊傳給懸浮球）" else "恢復（點一下可解除）"}")
+        }
+    }
+
     /** 必須在主執行緒呼叫。 */
-    fun show(app: Context): LockResult {
+    @JvmOverloads
+    fun show(app: Context, passThrough: Boolean = false): LockResult {
         if (view != null) return LockResult(true, "覆蓋層已經在顯示中")
         val wm = app.getSystemService(Context.WINDOW_SERVICE) as WindowManager
         val type = if (Build.VERSION.SDK_INT >= 26)
@@ -53,7 +74,8 @@ object BlackOverlay {
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                 WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
                 WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
-                WindowManager.LayoutParams.FLAG_FULLSCREEN,
+                WindowManager.LayoutParams.FLAG_FULLSCREEN or
+                (if (passThrough) WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE else 0),
             PixelFormat.OPAQUE
         ).apply {
             gravity = Gravity.TOP or Gravity.START
