@@ -30,7 +30,8 @@ import android.widget.Toast
 class DevActivity : Activity() {
 
     private lateinit var statusText: TextView
-    private lateinit var logText: TextView
+    private lateinit var logContainer: LinearLayout
+    private var lastLogRenderAt = 0L
     private lateinit var editDelay: EditText
     private lateinit var editAction: EditText
 
@@ -43,7 +44,7 @@ class DevActivity : Activity() {
         setContentView(R.layout.activity_main)
 
         statusText = findViewById(R.id.statusText)
-        logText = findViewById(R.id.logText)
+        logContainer = findViewById(R.id.logContainer)
         editDelay = findViewById(R.id.editDelay)
         editAction = findViewById(R.id.editAction)
 
@@ -204,8 +205,11 @@ class DevActivity : Activity() {
         }
 
         findViewById<Button>(R.id.btnScan).setOnClickListener {
-            toast("開始掃描，過程中請不要碰螢幕")
-            ScreenOff.scanPresetBroadcasts(this) { summary -> toast(summary) }
+            toast("開始掃描：盯著螢幕，一變黑就馬上點一下；沒變黑就不要碰")
+            ScreenOff.scanPresetBroadcasts(this) { summary ->
+                toast(summary)
+                editAction.setText(Prefs.customAction(this))
+            }
         }
 
         findViewById<Button>(R.id.btnDiscover).setOnClickListener {
@@ -370,8 +374,89 @@ class DevActivity : Activity() {
         }
     }
 
+    /**
+     * 逐行渲染，認得出來的行配一顆執行鈕 ——
+     * 看到「TYPE_VIEW_CLICKED pkg=com.ts.mytouch id=btn_screen_off」就能當場試，
+     * 不必再手抄 id 去填欄位。
+     */
     private fun refreshLog() {
-        logText.text = Logx.text()
+        // 記錄一直在進，每筆都重建幾百個 View 會卡，限流
+        val now = android.os.SystemClock.uptimeMillis()
+        if (now - lastLogRenderAt < 500) return
+        lastLogRenderAt = now
+
+        logContainer.removeAllViews()
+        val lines = Logx.lines()
+        if (lines.isEmpty()) {
+            logContainer.addView(TextView(this).apply {
+                text = "（尚無記錄）"
+                textSize = 12f
+            })
+            return
+        }
+        lines.forEach { line -> logContainer.addView(logRow(line)) }
+    }
+
+    private fun logRow(line: String): View {
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+        }
+        row.addView(TextView(this).apply {
+            text = line
+            textSize = 11f
+            setTextIsSelectable(true)
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        })
+        replayFor(line)?.let { (label, act) ->
+            row.addView(Button(this).apply {
+                text = label
+                textSize = 11f
+                isAllCaps = false
+                minWidth = 0
+                minimumWidth = 0
+                setPadding(16, 2, 16, 2)
+                setOnClickListener { act() }
+            })
+        }
+        return row
+    }
+
+    /** 這一行能不能重現？回傳（按鈕文字, 動作），認不出來就 null。 */
+    private fun replayFor(line: String): Pair<String, () -> Unit>? {
+        // 廣播：只要行中有像 action 的字串就能重送
+        Regex("""(?:[a-z][\w]*\.){2,}[A-Za-z_][\w]*""").find(line)?.value
+            ?.takeIf { line.contains("廣播") || line.contains("掃描") }
+            ?.let { action ->
+                return "送它" to {
+                    Prefs.setCustomAction(this, action)
+                    editAction.setText(action)
+                    ScreenOff.run(this, LockMethod.CUSTOM_BROADCAST) { r -> toast("$action：${r.msg}") }
+                }
+            }
+
+        // 點擊事件：拿 pkg / cls / id 試方法 M
+        val pkg = Regex("""pkg=([\w.]+)""").find(line)?.groupValues?.get(1)
+        if (pkg.isNullOrEmpty() || pkg == BuildInfo.PKG) return null
+        val cls = Regex("""cls=([\w$]+)""").find(line)?.groupValues?.get(1).orEmpty()
+        val id = Regex("""id=([\w.]+)""").find(line)?.groupValues?.get(1).orEmpty()
+        val key = if (id.isNotEmpty()) id else return null   // 沒 id 就認不出那一顆，不給按鈕
+
+        return "點它" to {
+            Prefs.setClickKeys(this, key)
+            Prefs.setScreenOffEventPkg(this, pkg)
+            if (cls.isNotEmpty()) Prefs.setScreenOffEventCls(this, cls)
+            Logx.d("【記錄重現】試點 $pkg / $cls / id=$key")
+            ScreenOff.run(this, LockMethod.CLICK_CAR_BUTTON) { r ->
+                toast(
+                    if (r.ok) "點下去了：${r.msg}"
+                    else "點不到：${r.msg}（輔助球要先展開，它才在畫面上）"
+                )
+            }
+        }
     }
 
     private fun updateStatus() {

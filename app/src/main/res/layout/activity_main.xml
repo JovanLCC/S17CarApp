@@ -155,7 +155,13 @@
             android:id="@+id/btnScan"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="自動掃描常見車機關螢幕廣播（約 40 秒）" />
+            android:text="自動掃描關螢幕廣播（螢幕變黑就點一下）" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="13sp"
+            android:text="一個一個送出候選 action，每個間隔 2 秒。這台關螢幕不會讓 Android 知道，所以請盯著螢幕：一變黑就馬上點一下，我會把那個 action 記下來。" />
 
         <Button
             android:id="@+id/btnDiscover"
@@ -408,16 +414,19 @@
         </LinearLayout>
 
         <TextView
-            android:id="@+id/logText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="13sp"
+            android:text="認得出來的行會有按鈕：點擊事件→「點它」可以直接試那顆按鈕，廣播→「送它」可以重送那個 action。" />
+
+        <LinearLayout
+            android:id="@+id/logContainer"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
             android:background="#11000000"
-            android:fontFamily="monospace"
-            android:padding="8dp"
-            android:textIsSelectable="true"
-            android:textSize="12sp"
-            android:text="（尚無記錄）" />
+            android:orientation="vertical"
+            android:padding="4dp" />
 
     </LinearLayout>
 </ScrollView>

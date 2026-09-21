@@ -49,6 +49,10 @@ object Logx {
         main.post { listener?.invoke() }
     }
 
+    /** 最新的在前。設定頁要逐行渲染＋每行配一顆執行鈕，所以需要清單而不是一大坨字串。 */
+    @Synchronized
+    fun lines(limit: Int = 150): List<String> = lines.toList().asReversed().take(limit)
+
     @Synchronized
     fun text(): String = if (lines.isEmpty()) "（尚無記錄）" else lines.reversed().joinToString("\n")
 

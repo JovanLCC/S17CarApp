@@ -202,8 +202,15 @@ class ScreenGuardService : AccessibilityService() {
         BlackOverlay.onShown = { setDarkMode(true, "黑幕已蓋上") }
         TouchWatcher.onTouch = {
             if (Prefs.logEverything(this)) Logx.d("[全] 觸控螢幕")
-            onScreenTapped()
-            onUserActivity("觸控螢幕")
+            // 掃描廣播時拿來標記「就是這個」，標完就不再當成一般操作
+            val marker = tapMarker
+            if (marker != null) {
+                tapMarker = null
+                marker()
+            } else {
+                onScreenTapped()
+                onUserActivity("觸控螢幕")
+            }
         }
         // 連點偵測要一直在，不能只有倒數期間才掛
         TouchWatcher.start(applicationContext)
@@ -580,6 +587,14 @@ class ScreenGuardService : AccessibilityService() {
      * 學習模式：下一下點到的非自家按鈕，就當成「關螢幕按鈕」記起來。
      * 不必再去記錄裡找 id 再手填。
      */
+    /**
+     * 下一下觸控要交給誰。
+     * 這台車機關螢幕不會讓 isInteractive 變 false，掃描廣播時程式沒辦法自己判斷成功，
+     * 所以改成「螢幕變黑就點一下」，由使用者標記。
+     */
+    @Volatile
+    var tapMarker: (() -> Unit)? = null
+
     @Volatile
     private var learning = false
 

@@ -216,13 +216,27 @@ object ScreenOff {
     fun scanPresetBroadcasts(c: Context, intervalMs: Long = 2000L, onDone: (String) -> Unit) {
         val app = c.applicationContext
         val pm = app.getSystemService(Context.POWER_SERVICE) as PowerManager
+        // 主執行緒寫、背景執行緒讀，用 Atomic 才安全
+        val marked = java.util.concurrent.atomic.AtomicBoolean(false)
+        var markedAction: String? = null
+
         bg.post {
-            Logx.d("=== 開始掃描 ${PRESET_ACTIONS.size} 個候選廣播 ===")
+            Logx.d("=== 開始掃描 ${PRESET_ACTIONS.size} 個候選廣播（螢幕若變黑請馬上點一下）===")
             var winner: String? = null
-            for (action in PRESET_ACTIONS) {
+            for ((i, action) in PRESET_ACTIONS.withIndex()) {
+                // 點擊標記：這台關螢幕不會讓 isInteractive 變 false，只能靠使用者告訴我們
+                ScreenGuardService.instance?.tapMarker = { marked.set(true) }
+                markedAction = action
+
                 val r = sendAction(app, action)
-                Logx.d("掃描：$action -> ${r.msg}")
+                Logx.d("掃描 ${i + 1}/${PRESET_ACTIONS.size}：$action -> ${r.msg}")
                 SystemClock.sleep(intervalMs)
+
+                if (marked.get()) {
+                    winner = markedAction
+                    Logx.d("★★ 你在送出 $winner 之後點了螢幕，這個就是答案 ★★")
+                    break
+                }
                 val interactive = if (Build.VERSION.SDK_INT >= 20) pm.isInteractive else true
                 if (!interactive) {
                     winner = action
@@ -230,7 +244,12 @@ object ScreenOff {
                     break
                 }
             }
-            val summary = winner?.let { "掃描完成，疑似有效：$it" } ?: "掃描完成，${PRESET_ACTIONS.size} 個候選都沒讓螢幕關掉"
+            ScreenGuardService.instance?.tapMarker = null
+
+            val summary = winner?.let {
+                Prefs.setCustomAction(app, it)
+                "找到了：$it（已填進自訂廣播欄，選方法 K 就能用）"
+            } ?: "掃描完成，${PRESET_ACTIONS.size} 個候選都沒反應"
             Logx.d(summary)
             main.post { onDone(summary) }
         }
