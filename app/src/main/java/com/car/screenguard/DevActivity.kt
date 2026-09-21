@@ -127,11 +127,19 @@ class DevActivity : Activity() {
         }
     }
 
+    /** 默認只列還在用的方法；目前選定的那個一定要在清單裡，不然下拉會指錯。 */
+    private fun visibleMethods(): List<LockMethod> {
+        val cur = Prefs.method(this)
+        return LockMethod.values().filter {
+            Prefs.showAllMethods(this) || !it.retired || it == cur
+        }
+    }
+
     // === ② 方法測試 ===
 
     private fun setupTestButtons() {
         val container = findViewById<LinearLayout>(R.id.containerTests)
-        LockMethod.values().forEach { method ->
+        visibleMethods().forEach { method ->
             val b = Button(this).apply {
                 text = "測試 ${method.code}：${method.label}"
                 isAllCaps = false
@@ -159,6 +167,17 @@ class DevActivity : Activity() {
         editClickKeys.setText(Prefs.clickKeysRaw(this))
         editClickKeys.setOnFocusChangeListener { _, hasFocus ->
             if (!hasFocus) Prefs.setClickKeys(this, editClickKeys.text.toString())
+        }
+
+        findViewById<Button>(R.id.btnLearn).setOnClickListener {
+            val svc = ScreenGuardService.instance
+            if (svc == null) {
+                toast("請先啟用無障礙服務")
+            } else {
+                svc.startLearnButton()
+                toast("現在去展開輔助球，點那顆關螢幕圖示，我會自動記住它")
+                moveTaskToBack(true)
+            }
         }
 
         findViewById<Button>(R.id.btnDump).setOnClickListener {
@@ -203,11 +222,11 @@ class DevActivity : Activity() {
 
     private fun setupSettings() {
         val spinner = findViewById<Spinner>(R.id.spinnerMethod)
-        val methods = LockMethod.values().toList()
+        val methods = visibleMethods()
         spinner.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, methods).apply {
             setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         }
-        spinner.setSelection(methods.indexOf(Prefs.method(this)))
+        spinner.setSelection(methods.indexOf(Prefs.method(this)).coerceAtLeast(0))
         spinner.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
             override fun onItemSelected(p: android.widget.AdapterView<*>?, v: View?, pos: Int, id: Long) {
                 if (methods[pos] != Prefs.method(this@DevActivity)) {
@@ -242,6 +261,10 @@ class DevActivity : Activity() {
         addSwitch(switches, "輪詢音量值（車機不送廣播時用）", Prefs.pollVolume(this)) { Prefs.setPollVolume(this, it) }
         addSwitch(switches, "備援：螢幕一亮就倒數（不管原因）", Prefs.triggerScreenOn(this)) { Prefs.setTriggerScreenOn(this, it) }
         addSwitch(switches, "倒數開始時顯示提示（除錯用）", Prefs.showToast(this)) { Prefs.setShowToast(this, it) }
+        addSwitch(switches, "顯示已證實無效的關螢幕方法", Prefs.showAllMethods(this)) {
+            Prefs.setShowAllMethods(this, it)
+            recreate()
+        }
         addSwitch(switches, "通知欄常駐開關", Prefs.showNotification(this)) {
             Prefs.setShowNotification(this, it)
             if (it) NotifyToggle.show(this) else NotifyToggle.hide(this)

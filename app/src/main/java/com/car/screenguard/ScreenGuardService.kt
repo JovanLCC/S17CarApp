@@ -289,8 +289,17 @@ class ScreenGuardService : AccessibilityService() {
         if (Prefs.diagnostic(this) && shouldLog(pkg)) {
             val txt = runCatching { event.text?.joinToString(" ")?.take(40) }.getOrNull().orEmpty()
             val value = if (event.itemCount > 0) " 值=${event.currentItemIndex}/${event.itemCount}" else ""
-            Logx.d("[診斷] 事件 ${AccessibilityEvent.eventTypeToString(type)} pkg=$pkg cls=${cls.substringAfterLast('.')}$value $txt")
+            // view id 要從 source 讀，AccessibilityEvent 本身沒有 ——
+            // 不印的話只看得到 cls=Button，根本分不出是哪一顆
+            val id = viewIdOf(event)
+            Logx.d(
+                "[診斷] 事件 ${AccessibilityEvent.eventTypeToString(type)} pkg=$pkg " +
+                    "cls=${cls.substringAfterLast('.')}$id$value $txt"
+            )
         }
+
+        // 學習模式最優先：這一下是拿來認按鈕的，不要跑到後面的邏輯
+        if (captureLearn(pkg, cls, event)) return
 
         // 車機的關閉螢幕按鈕：當成「使用者要暗了」，也不能算成一般操作
         if (isScreenOffEvent(pkg, cls)) {
@@ -559,6 +568,53 @@ class ScreenGuardService : AccessibilityService() {
     private val stopBlockingRunnable = Runnable {
         TouchWatcher.stopBlocking(applicationContext)
         tapCount = 0
+    }
+
+    /** 事件來源節點的 viewId，讀不到就回空字串。 */
+    private fun viewIdOf(event: AccessibilityEvent): String {
+        val id = runCatching { event.source?.viewIdResourceName }.getOrNull().orEmpty()
+        return if (id.isEmpty()) "" else " id=${id.substringAfterLast('/')}"
+    }
+
+    /**
+     * 學習模式：下一下點到的非自家按鈕，就當成「關螢幕按鈕」記起來。
+     * 不必再去記錄裡找 id 再手填。
+     */
+    @Volatile
+    private var learning = false
+
+    fun startLearnButton() {
+        learning = true
+        Logx.d("=== 學習模式：請現在去按車機的關螢幕按鈕 ===")
+    }
+
+    fun isLearning() = learning
+
+    /** @return true 代表這一下被學習模式吃掉，不要再當成一般操作。 */
+    private fun captureLearn(pkg: String, cls: String, event: AccessibilityEvent): Boolean {
+        if (!learning || pkg.isEmpty() || pkg == BuildInfo.PKG) return false
+        if (event.eventType != AccessibilityEvent.TYPE_VIEW_CLICKED) return false
+        learning = false
+
+        val rawId = runCatching { event.source?.viewIdResourceName }.getOrNull().orEmpty()
+        val shortId = rawId.substringAfterLast('/')
+        // id 最精準；沒有 id 就退而用文字或說明，都沒有只能用 class
+        val text = runCatching { event.text?.joinToString(" ") }.getOrNull().orEmpty()
+        val desc = runCatching { event.contentDescription?.toString() }.getOrNull().orEmpty()
+        val key = listOf(shortId, text, desc).firstOrNull { it.isNotBlank() }
+
+        Prefs.setScreenOffEventPkg(this, pkg)
+        Prefs.setScreenOffEventCls(this, cls.substringAfterLast('.'))
+        if (key != null) {
+            Prefs.setClickKeys(this, key)
+            Prefs.setMethod(this, LockMethod.CLICK_CAR_BUTTON)
+            Logx.d("★★ 學到了：$pkg / ${cls.substringAfterLast('.')} / 關鍵字=$key，方法已改成 M")
+            Toast.makeText(this, "已記住這顆按鈕：$key，方法已改成 M，回 App 按「測試 M」", Toast.LENGTH_LONG).show()
+        } else {
+            Logx.d("★★ 點到 $pkg / ${cls.substringAfterLast('.')}，但它沒有 id、文字也沒有說明 —— 方法 M 認不出來，請用側錄座標（方法 N）")
+            Toast.makeText(this, "這顆按鈕沒有 id 也沒有文字，認不出來，請用側錄座標", Toast.LENGTH_LONG).show()
+        }
+        return true
     }
 
     /**

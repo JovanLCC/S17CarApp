@@ -15,22 +15,36 @@ import android.provider.Settings
 import android.view.KeyEvent
 import java.io.File
 
-/** 一種「把螢幕關掉」的候選做法。車機系統常被改過，只能一個一個試。 */
-enum class LockMethod(val code: String, val label: String, val needsMainThread: Boolean = true) {
-    ACC_LOCK("A", "無障礙鎖屏 GLOBAL_ACTION_LOCK_SCREEN"),
-    ADMIN_LOCK("B", "裝置管理員 lockNow()"),
-    POWER_SLEEP("C", "反射呼叫 PowerManager.goToSleep()"),
-    ROOT_POWER_KEY("D", "root：input keyevent 26 (POWER)", false),
-    ROOT_SLEEP_KEY("E", "root：input keyevent 223 (SLEEP)", false),
-    SHELL_SLEEP_KEY("F", "免 root：input keyevent 223", false),
-    BACKLIGHT_SYSFS("G", "背光節點寫 0（/sys/class/backlight）", false),
-    SCREEN_TIMEOUT("H", "改系統休眠逾時（需寫入設定權限）"),
-    BRIGHTNESS_ZERO("I", "系統亮度歸零（需寫入設定權限）"),
-    BLACK_OVERLAY("J", "全黑覆蓋層＋視窗亮度 0（保底假關螢幕）"),
+/**
+ * 一種「把螢幕關掉」的候選做法。
+ *
+ * @param retired 已在 JHY S17 實測無效（或有副作用），預設不顯示。
+ *   不直接刪除是因為舊設定可能還存著這些值，而且換一台車機可能又有用。
+ */
+enum class LockMethod(
+    val code: String,
+    val label: String,
+    val needsMainThread: Boolean = true,
+    val retired: Boolean = false
+) {
+    // 下面這些實測都不行：A/B 會讓系統真的睡著（音樂導航中斷），
+    // C/L 需系統簽章，D/E/G 需 root，F 權限不足，H/I 被這台 ROM 忽略。
+    ACC_LOCK("A", "無障礙鎖屏 GLOBAL_ACTION_LOCK_SCREEN", retired = true),
+    ADMIN_LOCK("B", "裝置管理員 lockNow()", retired = true),
+    POWER_SLEEP("C", "反射呼叫 PowerManager.goToSleep()", retired = true),
+    ROOT_POWER_KEY("D", "root：input keyevent 26 (POWER)", false, retired = true),
+    ROOT_SLEEP_KEY("E", "root：input keyevent 223 (SLEEP)", false, retired = true),
+    SHELL_SLEEP_KEY("F", "免 root：input keyevent 223", false, retired = true),
+    BACKLIGHT_SYSFS("G", "背光節點寫 0（/sys/class/backlight）", false, retired = true),
+    SCREEN_TIMEOUT("H", "改系統休眠逾時", retired = true),
+    BRIGHTNESS_ZERO("I", "系統亮度歸零", retired = true),
+    INJECT_POWER_KEY("L", "Instrumentation 注入 POWER 鍵", false, retired = true),
+
+    // 這三個才是還在用的
+    BLACK_OVERLAY("J", "全黑覆蓋層（保底，不夠黑）"),
     CUSTOM_BROADCAST("K", "自訂廣播（下面欄位輸入 action）"),
-    INJECT_POWER_KEY("L", "Instrumentation 注入 POWER 鍵", false),
-    CLICK_CAR_BUTTON("M", "點擊車機自己的「關閉螢幕」按鈕"),
-    SIMULATE_TAP("N", "模擬點擊側錄的兩個位置（輔助球 → 關螢幕）");
+    CLICK_CAR_BUTTON("M", "點擊車機的關螢幕按鈕（靠節點）"),
+    SIMULATE_TAP("N", "模擬點擊側錄位置（正式方案）");
 
     override fun toString() = "$code. $label"
 }
@@ -41,6 +55,10 @@ object ScreenOff {
 
     /** 常見中國車機 ROM 的關螢幕廣播候選；不確定哪個對，所以做成逐一掃描。 */
     val PRESET_ACTIONS = listOf(
+        // 鼎微 / tx 方案的自訂事件
+        "tx.action.SCREEN_OFF",
+        "tx.action.ACC_OFF",
+
         // 掌訊（com.ts）官方命名，最有機會
         "com.ts.intent.action.BACKLIGHT_OFF",
         "com.ts.intent.action.SCREEN_OFF",

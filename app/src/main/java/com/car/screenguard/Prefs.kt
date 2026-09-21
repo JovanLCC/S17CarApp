@@ -34,6 +34,7 @@ object Prefs {
     private const val KEY_TAP_TOGGLE = "tap_toggle"
     private const val KEY_VOL_ZERO_TOGGLE = "vol_zero_toggle"
     private const val KEY_STATE_DOT = "state_dot"
+    private const val KEY_SHOW_ALL_METHODS = "show_all_methods"
     private const val KEY_LOG_ONLY_PKGS = "log_only_pkgs"
     private const val KEY_CAR_ACTIONS = "car_actions"
     private const val DEFAULT_CAR_ACTIONS =
@@ -45,7 +46,14 @@ object Prefs {
             "com.ts.intent.action.GOTO_SLEEP," +
             "com.ts.intent.action.WAKEUP," +
             "com.ts.intent.action.ACC_OFF," +
-            "com.ts.intent.action.ACC_ON"
+            "com.ts.intent.action.ACC_ON," +
+            // 鼎微 / tx 方案
+            "tx.action.SCREEN_OFF," +
+            "tx.action.SCREEN_ON," +
+            "tx.action.ACC_OFF," +
+            "tx.action.ACC_ON," +
+            // 車機進深度休眠前通常會發這個
+            "com.android.internal.intent.action.REQUEST_SHUTDOWN"
     private const val KEY_NOTIFICATION = "show_notification"
     private const val KEY_DROP_ON_NEW_WINDOW = "drop_on_new_window"
     private const val KEY_REVERSE_KEYS = "reverse_keys"
@@ -149,6 +157,10 @@ object Prefs {
     /** 通知欄常駐開關（車機上音量手勢收不到訊號，這條路最可靠，預設開）。 */
     fun showNotification(c: Context) = sp(c).getBoolean(KEY_NOTIFICATION, true)
     fun setShowNotification(c: Context, v: Boolean) = sp(c).edit().putBoolean(KEY_NOTIFICATION, v).apply()
+
+    /** 連已證實無效的關螢幕方法一起顯示（預設關，畫面才不會一堆按不得的按鈕）。 */
+    fun showAllMethods(c: Context) = sp(c).getBoolean(KEY_SHOW_ALL_METHODS, false)
+    fun setShowAllMethods(c: Context, v: Boolean) = sp(c).edit().putBoolean(KEY_SHOW_ALL_METHODS, v).apply()
 
     /**
      * 只記錄這些套件的事件（逗號分隔，留空＝除自家以外全部）。

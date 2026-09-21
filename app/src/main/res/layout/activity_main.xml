@@ -112,6 +112,15 @@
             android:singleLine="true" />
 
         <Button
+            android:id="@+id/btnLearn"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:padding="12dp"
+            android:text="學習關螢幕按鈕（按完去點輔助球上那顆）"
+            android:textSize="16sp" />
+
+        <Button
             android:id="@+id/btnDump"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
