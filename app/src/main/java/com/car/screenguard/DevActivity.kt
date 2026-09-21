@@ -167,11 +167,13 @@ class DevActivity : Activity() {
             if (svc == null) {
                 toast("請先啟用無障礙服務")
             } else {
-                toast("5 秒後傾印，請馬上切到車機那個有關閉螢幕按鈕的畫面")
+                toast("8 秒後傾印：請馬上把車機的輔助球展開，讓關螢幕圖示露出來")
                 android.os.Handler(mainLooper).postDelayed({
-                    val n = svc.dumpNodes()
-                    Logx.d("傾印完成，$n 個節點；回 App 看記錄找那顆按鈕")
-                }, 5000)
+                    // 只印車機自家的畫面；留空則印所有（自家 App 永遠排除）
+                    val filter = findViewById<EditText>(R.id.editOffEventPkg).text.toString().trim()
+                    val n = svc.dumpNodes(filter)
+                    Logx.d("傾印完成，$n 個節點；找 click=true 的那幾行，把 id 填進上面的按鈕關鍵字")
+                }, 8000)
             }
         }
 

@@ -206,8 +206,11 @@ class ScreenGuardService : AccessibilityService() {
         val pkg = event.packageName?.toString() ?: ""
         val type = event.eventType
 
-        // 全事件模式：連平常沒訂閱的類型也一起記，用來確認某個動作是不是真的沒有任何事件
-        if (Prefs.logEverything(this) && logAllThrottle(type, pkg)) {
+        // 全事件模式：連平常沒訂閱的類型也一起記，用來確認某個動作是不是真的沒有任何事件。
+        // 一定要跳過自己：記錄區的 TextView 一更新就發 WINDOW_CONTENT_CHANGED，
+        // 那又會被記下來再更新一次 —— 實測這個回授迴圈佔掉 96% 的記錄，
+        // 幾秒就把緩衝沖光，真正要找的事件全被擠掉。
+        if (pkg != BuildInfo.PKG && Prefs.logEverything(this) && logAllThrottle(type, pkg)) {
             val v = if (event.itemCount > 0) " 值=${event.currentItemIndex}/${event.itemCount}" else ""
             Logx.d(
                 "[全] ${AccessibilityEvent.eventTypeToString(type)} pkg=$pkg " +
@@ -705,7 +708,8 @@ class ScreenGuardService : AccessibilityService() {
      * 把目前畫面上的節點全部倒進記錄，用來找出「關閉螢幕」按鈕的實際文字／id。
      * 由設定頁延遲幾秒後呼叫，中間讓使用者切到車機的畫面。
      */
-    fun dumpNodes(): Int {
+    @JvmOverloads
+    fun dumpNodes(onlyPkg: String = ""): Int {
         var count = 0
         fun walk(n: AccessibilityNodeInfo?, depth: Int) {
             n ?: return
@@ -732,13 +736,23 @@ class ScreenGuardService : AccessibilityService() {
             Logx.d("!! 這版加了「讀取畫面內容」權限，請把無障礙服務關掉再打開一次，讓系統重新授權 !!")
             return 0
         }
-        active?.let {
-            Logx.d("[節點] -- 目前視窗 ${it.packageName} --")
-            walk(it, 0)
+        // 只看得見的那一支：自家記錄區節點一大堆，不濾掉會把真正要找的埋掉
+        fun wanted(pkg: CharSequence?): Boolean {
+            val p = pkg?.toString().orEmpty()
+            if (p == BuildInfo.PKG) return false   // 自家畫面永遠不用印
+            return onlyPkg.isEmpty() || p.contains(onlyPkg, true)
         }
-        winRoots.forEach { r ->
+
+        val seen = HashSet<String>()
+        (listOfNotNull(active) + winRoots).forEach { r ->
+            if (!wanted(r.packageName)) return@forEach
+            val key = r.packageName?.toString().orEmpty() + "/" + r.windowId
+            if (!seen.add(key)) return@forEach
             Logx.d("[節點] -- 視窗 ${r.packageName} --")
             walk(r, 0)
+        }
+        if (count == 0 && onlyPkg.isNotEmpty()) {
+            Logx.d("!! 畫面上沒有 $onlyPkg 的節點，確定它展開著嗎？!!")
         }
         Logx.d("=== 傾印結束，共 $count 個節點${if (count >= 200) "（已達上限，可能還有更多）" else ""} ===")
         return count

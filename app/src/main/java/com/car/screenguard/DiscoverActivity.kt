@@ -33,7 +33,7 @@ class DiscoverActivity : Activity() {
         status = findViewById(R.id.scanStatus)
         container = findViewById(R.id.containerResults)
         val keywords = findViewById<android.widget.EditText>(R.id.editKeywords)
-        keywords.setText("screen,backlight,lcd,sleep,black,blank,display")
+        keywords.setText("com.ts")
 
         findViewById<Button>(R.id.btnScanComponents).setOnClickListener {
             scan(keywords.text.toString().split(",").map { it.trim().lowercase() }.filter { it.isNotEmpty() })
@@ -57,8 +57,10 @@ class DiscoverActivity : Activity() {
 
                 fun collect(kind: String, names: Array<out android.content.pm.ComponentInfo>?) {
                     names?.forEach { ci ->
-                        val n = ci.name.lowercase()
-                        if (keys.any { n.contains(it) } && !ci.name.startsWith(BuildInfo.PKG)) {
+                        // 套件名也要比對：輸入 com.ts 就能把整支車機 App 的元件全列出來，
+                        // 不必猜元件叫什麼。那顆輔助球是 com.ts.mytouch，關螢幕的入口很可能在裡面。
+                        val hay = (ci.packageName + " " + ci.name).lowercase()
+                        if (keys.any { hay.contains(it) } && !ci.name.startsWith(BuildInfo.PKG)) {
                             found.add(Item(kind, ComponentName(ci.packageName, ci.name), ci.exported))
                         }
                     }
