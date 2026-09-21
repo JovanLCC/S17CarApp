@@ -40,8 +40,9 @@ enum class LockMethod(
     BRIGHTNESS_ZERO("I", "系統亮度歸零", retired = true),
     INJECT_POWER_KEY("L", "Instrumentation 注入 POWER 鍵", false, retired = true),
 
-    // 這三個才是還在用的
-    BLACK_OVERLAY("J", "全黑覆蓋層（保底，不夠黑）"),
+    // 黑幕實測不夠黑（背光關不掉），已不是選項；
+    // 不刪是因為沒側錄時還要當備援，只是不再列在測試按鈕裡
+    BLACK_OVERLAY("J", "全黑覆蓋層（不夠黑）", retired = true),
     CUSTOM_BROADCAST("K", "自訂廣播（下面欄位輸入 action）"),
     CLICK_CAR_BUTTON("M", "點擊車機的關螢幕按鈕（靠節點）"),
     SIMULATE_TAP("N", "模擬點擊側錄位置（正式方案）");

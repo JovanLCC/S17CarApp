@@ -40,7 +40,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:textSize="13sp"
-            android:text="按下去＝方法 J 黑幕 + 只認車機音量條 + 5 秒 + 其他操作取消，之後關掉 App 就會在背景運作。" />
+            android:text="按下去＝已側錄就用模擬點擊（N）、沒側錄就退回黑幕（J）＋只認車機音量條＋其他操作取消。" />
 
         <!-- ================= 權限 ================= -->
         <TextView
@@ -127,6 +127,7 @@
             android:text="5 秒後傾印畫面節點（切到車機畫面）" />
 
         <TextView
+            android:id="@+id/snapshotHint"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
@@ -134,6 +135,7 @@
             android:text="實體關螢幕鍵抓不到訊號時用這組：先記錄快照 → 按實體鍵關螢幕 → 喚醒 → 按比對，看車機動了哪個系統設定。" />
 
         <LinearLayout
+            android:id="@+id/snapshotRow"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal">
@@ -309,6 +311,7 @@
             android:singleLine="true" />
 
         <LinearLayout
+            android:id="@+id/brightnessRow"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:gravity="center_vertical"

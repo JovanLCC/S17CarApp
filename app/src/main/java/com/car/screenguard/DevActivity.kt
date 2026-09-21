@@ -53,6 +53,7 @@ class DevActivity : Activity() {
         setupTestButtons()
         setupSettings()
         setupLogButtons()
+        hideRetired()
     }
 
     override fun onResume() {
@@ -81,7 +82,8 @@ class DevActivity : Activity() {
             }
             Prefs.applyOfficialProfile(this)
             Logx.d(
-                "=== 已套用正式方案：方法 J 黑幕 ＋ 音量條 ${Prefs.volumeEventPkg(this)}/${Prefs.volumeEventCls(this)} " +
+                "=== 已套用正式方案：方法 ${Prefs.method(this).code} ＋ 音量條 " +
+                    "${Prefs.volumeEventPkg(this)}/${Prefs.volumeEventCls(this)} " +
                     "＋ ${Prefs.getDelayMillis(this) / 1000} 秒 ＋ 其他操作取消 ==="
             )
             toast("已正式啟用，現在可以關掉 App，它會在背景運作")
@@ -126,6 +128,25 @@ class DevActivity : Activity() {
                 )
             } else toast("此系統版本預設已允許")
         }
+    }
+
+    /**
+     * 把實測無效的東西收起來。畫面上剩下的都是還有用的，
+     * 下車測試時不用再猜該按哪一顆。
+     */
+    private fun hideRetired() {
+        if (Prefs.showAllMethods(this)) return
+        intArrayOf(
+            R.id.btnAdmin,          // 方法 B 專用
+            R.id.btnWritePerm,      // 方法 H/I 與「壓亮度」專用，都無效
+            R.id.btnRestore,        // 上面那些不改設定了，就不需要還原
+            R.id.snapshotHint,      // 設定快照比對：這台關螢幕沒寫任何系統設定
+            R.id.snapshotRow,
+            R.id.brightnessRow,     // 黑幕亮度：實測設 0 也不會關背光
+            R.id.editVolKeys,       // 音量沒寫系統設定
+            R.id.editVolWindows,    // 音量條是畫面事件，不是獨立視窗
+            R.id.btnVolumeDump      // 這台不走 AudioManager，印出來永遠不變
+        ).forEach { findViewById<View>(it)?.visibility = View.GONE }
     }
 
     /** 默認只列還在用的方法；目前選定的那個一定要在清單裡，不然下拉會指錯。 */
@@ -260,12 +281,12 @@ class DevActivity : Activity() {
         }
 
         val switches = findViewById<LinearLayout>(R.id.containerSwitches)
-        addSwitch(switches, "總開關：自動關螢幕", Prefs.enabled(this)) { Prefs.setEnabled(this, it) }
+        addSwitch(switches, "總開關：自動關螢幕", Prefs.enabled(this), retired = true) { Prefs.setEnabled(this, it) }
         addSwitch(switches, "音量變化就開始倒數", Prefs.triggerVolume(this)) { Prefs.setTriggerVolume(this, it) }
-        addSwitch(switches, "輪詢音量值（車機不送廣播時用）", Prefs.pollVolume(this)) { Prefs.setPollVolume(this, it) }
-        addSwitch(switches, "備援：螢幕一亮就倒數（不管原因）", Prefs.triggerScreenOn(this)) { Prefs.setTriggerScreenOn(this, it) }
-        addSwitch(switches, "倒數開始時顯示提示（除錯用）", Prefs.showToast(this)) { Prefs.setShowToast(this, it) }
-        addSwitch(switches, "顯示已證實無效的關螢幕方法", Prefs.showAllMethods(this)) {
+        addSwitch(switches, "輪詢音量值（這台不走 AudioManager，白工）", Prefs.pollVolume(this), retired = true) { Prefs.setPollVolume(this, it) }
+        addSwitch(switches, "備援：螢幕一亮就倒數（不管原因）", Prefs.triggerScreenOn(this), retired = true) { Prefs.setTriggerScreenOn(this, it) }
+        addSwitch(switches, "倒數開始時顯示提示（除錯用）", Prefs.showToast(this), retired = true) { Prefs.setShowToast(this, it) }
+        addSwitch(switches, "▼ 顯示已證實無效的所有選項", Prefs.showAllMethods(this)) {
             Prefs.setShowAllMethods(this, it)
             recreate()
         }
@@ -273,22 +294,22 @@ class DevActivity : Activity() {
             Prefs.setShowNotification(this, it)
             if (it) NotifyToggle.show(this) else NotifyToggle.hide(this)
         }
-        addSwitch(switches, "角落顯示狀態圓點（綠＝開啟、紅＝關閉）", Prefs.showStateDot(this)) {
+        addSwitch(switches, "角落顯示狀態圓點（通知欄已經看得到）", Prefs.showStateDot(this), retired = true) {
             Prefs.setShowStateDot(this, it)
             StateDot.refresh(applicationContext, Prefs.enabled(this))
         }
-        addSwitch(switches, "音量歸零後再按「−」五次切換啟用／停用", Prefs.volZeroToggle(this)) { Prefs.setVolZeroToggle(this, it) }
-        addSwitch(switches, "螢幕連點五下切換啟用／停用", Prefs.tapToggle(this)) { Prefs.setTapToggle(this, it) }
-        addSwitch(switches, "⚠ 有新畫面跳出時自動撤掉黑幕（倒車安全，不要關）", Prefs.dropOnNewWindow(this)) { Prefs.setDropOnNewWindow(this, it) }
-        addSwitch(switches, "蓋黑幕時連系統亮度一起壓到 0", Prefs.dimSystem(this)) { Prefs.setDimSystem(this, it) }
-        addSwitch(switches, "只有調音量前螢幕是關閉的才變黑", Prefs.requireScreenOffFirst(this)) { Prefs.setRequireScreenOffFirst(this, it) }
-        addSwitch(switches, "黑幕被點掉後，沒操作就自動再黑", Prefs.autoRedark(this)) { Prefs.setAutoRedark(this, it) }
+        addSwitch(switches, "音量歸零後再按「−」五次切換（車機收不到訊號）", Prefs.volZeroToggle(this), retired = true) { Prefs.setVolZeroToggle(this, it) }
+        addSwitch(switches, "螢幕連點五下切換（不好用）", Prefs.tapToggle(this), retired = true) { Prefs.setTapToggle(this, it) }
+        addSwitch(switches, "⚠ 有新畫面跳出時自動撤掉黑幕（只影響方法 J）", Prefs.dropOnNewWindow(this), retired = true) { Prefs.setDropOnNewWindow(this, it) }
+        addSwitch(switches, "蓋黑幕時連系統亮度一起壓到 0（實測沒差）", Prefs.dimSystem(this), retired = true) { Prefs.setDimSystem(this, it) }
+        addSwitch(switches, "只有調音量前螢幕是關閉的才變黑", Prefs.requireScreenOffFirst(this), retired = true) { Prefs.setRequireScreenOffFirst(this, it) }
+        addSwitch(switches, "黑幕被點掉後，沒操作就自動再黑（方法 J 專用）", Prefs.autoRedark(this), retired = true) { Prefs.setAutoRedark(this, it) }
         addSwitch(switches, "診斷模式：記錄車機所有動靜（找音量訊號用）", Prefs.diagnostic(this)) { Prefs.setDiagnostic(this, it) }
         addSwitch(switches, "全事件模式：連畫面內容變化／觸控／按鍵放開都記（很吵）", Prefs.logEverything(this)) {
             Prefs.setLogEverything(this, it)
             ScreenGuardService.instance?.refreshEventMask()
         }
-        addSwitch(switches, "黑幕開著調音量時重貼黑幕蓋掉音量條（會閃一下）", Prefs.reassertOnVolume(this)) { Prefs.setReassertOnVolume(this, it) }
+        addSwitch(switches, "黑幕開著調音量時重貼黑幕（方法 J 專用）", Prefs.reassertOnVolume(this), retired = true) { Prefs.setReassertOnVolume(this, it) }
 
         val editVolKeys = findViewById<EditText>(R.id.editVolKeys)
         val editVolWindows = findViewById<EditText>(R.id.editVolWindows)
@@ -342,7 +363,15 @@ class DevActivity : Activity() {
         }
     }
 
-    private fun addSwitch(parent: LinearLayout, label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+    /** @param retired 已證實在這台車機無效，預設不顯示。 */
+    private fun addSwitch(
+        parent: LinearLayout,
+        label: String,
+        checked: Boolean,
+        retired: Boolean = false,
+        onChange: (Boolean) -> Unit
+    ) {
+        if (retired && !Prefs.showAllMethods(this)) return
         val s = Switch(this).apply {
             text = label
             textSize = 15f
