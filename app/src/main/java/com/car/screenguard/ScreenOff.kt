@@ -43,7 +43,9 @@ enum class LockMethod(
     // 黑幕實測不夠黑（背光關不掉），已不是選項；
     // 不刪是因為沒側錄時還要當備援，只是不再列在測試按鈕裡
     BLACK_OVERLAY("J", "全黑覆蓋層（不夠黑）", retired = true),
-    CUSTOM_BROADCAST("K", "自訂廣播（下面欄位輸入 action）"),
+    // 廣播這條路可以不試了；掃描若真的抓到有效的 action，
+    // 會自動把方法切成 K，那時它自己會重新出現在清單裡
+    CUSTOM_BROADCAST("K", "自訂廣播（下面欄位輸入 action）", retired = true),
     CLICK_CAR_BUTTON("M", "點擊車機的關螢幕按鈕（靠節點）"),
     SIMULATE_TAP("N", "模擬點擊側錄位置（正式方案）");
 
@@ -249,7 +251,9 @@ object ScreenOff {
 
             val summary = winner?.let {
                 Prefs.setCustomAction(app, it)
-                "找到了：$it（已填進自訂廣播欄，選方法 K 就能用）"
+                // K 平常是隱藏的，這裡直接幫使用者切過去，不用再去翻選項
+                Prefs.setMethod(app, LockMethod.CUSTOM_BROADCAST)
+                "找到了：$it（方法已自動改成 K）"
             } ?: "掃描完成，${PRESET_ACTIONS.size} 個候選都沒反應"
             Logx.d(summary)
             main.post { onDone(summary) }

@@ -137,6 +137,7 @@ class DevActivity : Activity() {
     private fun hideRetired() {
         if (Prefs.showAllMethods(this)) return
         intArrayOf(
+            R.id.editAction,        // 方法 K 的輸入欄
             R.id.btnAdmin,          // 方法 B 專用
             R.id.btnWritePerm,      // 方法 H/I 與「壓亮度」專用，都無效
             R.id.btnRestore,        // 上面那些不改設定了，就不需要還原
