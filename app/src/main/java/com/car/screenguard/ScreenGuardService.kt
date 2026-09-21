@@ -138,6 +138,49 @@ class ScreenGuardService : AccessibilityService() {
         }
     }
 
+    /**
+     * 掌訊（com.ts）自家的狀態廣播。
+     * 這台收不到原生的 ACTION_SCREEN_OFF，這些是唯一有機會拿到的螢幕狀態訊號。
+     * 必須動態註冊（這類廣播静態註冊接不到）。
+     */
+    private val carReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            onCarAction(intent?.action ?: return)
+        }
+    }
+
+    private fun onCarAction(action: String) {
+        Logx.d("★★ 收到車機廣播：$action")
+        val a = action.uppercase()
+        when {
+            a.endsWith("_OFF") || a.contains("SLEEP") ->
+                if (screenOn) {
+                    Logx.d("→ 依 $action 判定螢幕已關")
+                    onScreenOff()
+                }
+            a.endsWith("_ON") || a.contains("WAKE") ->
+                if (!screenOn) {
+                    Logx.d("→ 依 $action 判定螢幕已亮")
+                    onScreenOn()
+                }
+        }
+    }
+
+    /** 設定頁改過廣播清單後重新接，不必重開服務。 */
+    fun reloadCarActions() {
+        runCatching { unregisterReceiver(carReceiver) }
+        registerCarActions()
+    }
+
+    private fun registerCarActions() {
+        val actions = Prefs.carActions(this)
+        if (actions.isEmpty()) return
+        runCatching {
+            registerReceiver(carReceiver, IntentFilter().apply { actions.forEach { addAction(it) } })
+            Logx.d("已監聽 ${actions.size} 個車機廣播：${actions.joinToString()}")
+        }.onFailure { Logx.d("車機廣播監聽失敗：${it.message}") }
+    }
+
     override fun onServiceConnected() {
         super.onServiceConnected()
         instance = this
@@ -154,6 +197,7 @@ class ScreenGuardService : AccessibilityService() {
             contentResolver.registerContentObserver(Settings.Global.CONTENT_URI, true, settingsObserver)
             contentResolver.registerContentObserver(Settings.Secure.CONTENT_URI, true, settingsObserver)
         }
+        registerCarActions()
         BlackOverlay.onDismissed = { onOverlayDismissed() }
         BlackOverlay.onShown = { setDarkMode(true, "黑幕已蓋上") }
         TouchWatcher.onTouch = {
@@ -182,6 +226,7 @@ class ScreenGuardService : AccessibilityService() {
         super.onDestroy()
         instance = null
         runCatching { unregisterReceiver(receiver) }
+        runCatching { unregisterReceiver(carReceiver) }
         runCatching { contentResolver.unregisterContentObserver(settingsObserver) }
         BlackOverlay.onDismissed = null
         BlackOverlay.onShown = null

@@ -34,6 +34,17 @@ object Prefs {
     private const val KEY_TAP_TOGGLE = "tap_toggle"
     private const val KEY_VOL_ZERO_TOGGLE = "vol_zero_toggle"
     private const val KEY_STATE_DOT = "state_dot"
+    private const val KEY_CAR_ACTIONS = "car_actions"
+    private const val DEFAULT_CAR_ACTIONS =
+        "com.ts.intent.action.BACKLIGHT_OFF," +
+            "com.ts.intent.action.BACKLIGHT_ON," +
+            "com.ts.intent.action.SCREEN_OFF," +
+            "com.ts.intent.action.SCREEN_ON," +
+            "com.ts.intent.action.SLEEP," +
+            "com.ts.intent.action.GOTO_SLEEP," +
+            "com.ts.intent.action.WAKEUP," +
+            "com.ts.intent.action.ACC_OFF," +
+            "com.ts.intent.action.ACC_ON"
     private const val KEY_NOTIFICATION = "show_notification"
     private const val KEY_DROP_ON_NEW_WINDOW = "drop_on_new_window"
     private const val KEY_REVERSE_KEYS = "reverse_keys"
@@ -137,6 +148,20 @@ object Prefs {
     /** 通知欄常駐開關（車機上音量手勢收不到訊號，這條路最可靠，預設開）。 */
     fun showNotification(c: Context) = sp(c).getBoolean(KEY_NOTIFICATION, true)
     fun setShowNotification(c: Context, v: Boolean) = sp(c).edit().putBoolean(KEY_NOTIFICATION, v).apply()
+
+    /**
+     * 掌訊（com.ts）系列車機自家的狀態廣播，逗號分隔。
+     *
+     * 這台收不到 Android 原生的 ACTION_SCREEN_OFF（背光由 MCU 切），
+     * 但原廠韌體可能會發自家的 BACKLIGHT_OFF/ON ——
+     * 若真的有，那就是我們唯一拿得到的螢幕狀態訊號。
+     * 這類廣播無法靜態註冊，必須在服務裡 registerReceiver 動態接。
+     */
+    fun carActions(c: Context): List<String> =
+        (sp(c).getString(KEY_CAR_ACTIONS, DEFAULT_CAR_ACTIONS) ?: "")
+            .split(",").map { it.trim() }.filter { it.isNotEmpty() }
+    fun carActionsRaw(c: Context): String = sp(c).getString(KEY_CAR_ACTIONS, DEFAULT_CAR_ACTIONS) ?: ""
+    fun setCarActions(c: Context, v: String) = sp(c).edit().putString(KEY_CAR_ACTIONS, v).apply()
 
     /** 角落狀態圓點：綠＝開啟中，紅＝已關閉。通知欄已經看得到狀態，所以預設關。 */
     fun showStateDot(c: Context) = sp(c).getBoolean(KEY_STATE_DOT, false)

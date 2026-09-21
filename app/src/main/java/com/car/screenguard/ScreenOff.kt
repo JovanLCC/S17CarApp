@@ -41,7 +41,13 @@ object ScreenOff {
 
     /** 常見中國車機 ROM 的關螢幕廣播候選；不確定哪個對，所以做成逐一掃描。 */
     val PRESET_ACTIONS = listOf(
-        // 這台車機的 UI 是 com.ts.MainUI，自家 action 最有機會
+        // 掌訊（com.ts）官方命名，最有機會
+        "com.ts.intent.action.BACKLIGHT_OFF",
+        "com.ts.intent.action.SCREEN_OFF",
+        "com.ts.intent.action.SLEEP",
+        "com.ts.intent.action.GOTO_SLEEP",
+
+        // 這台車機的 UI 是 com.ts.MainUI，自家 action 也試一輪
         "com.ts.MainUI.SCREEN_OFF",
         "com.ts.MainUI.screenoff",
         "com.ts.action.SCREEN_OFF",

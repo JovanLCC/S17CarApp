@@ -269,6 +269,21 @@
             android:inputType="textNoSuggestions"
             android:singleLine="true" />
 
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:textSize="13sp"
+            android:text="要監聽的車機自家廣播（逗號分隔）。收到時記錄會出現「★★ 收到車機廣播」，_OFF/SLEEP 當關螢幕、_ON/WAKE 當亮螢幕。" />
+
+        <EditText
+            android:id="@+id/editCarActions"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="com.ts.intent.action.BACKLIGHT_OFF,..."
+            android:inputType="textNoSuggestions"
+            android:singleLine="true" />
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
