@@ -269,6 +269,15 @@
             android:inputType="textNoSuggestions"
             android:singleLine="true" />
 
+        <EditText
+            android:id="@+id/editLogOnly"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:hint="只記錄這些套件（例：com.ts；留空＝除自家外全部）"
+            android:inputType="textNoSuggestions"
+            android:singleLine="true" />
+
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

@@ -273,6 +273,8 @@ class DevActivity : Activity() {
         val editOffEventCls = findViewById<EditText>(R.id.editOffEventCls)
         val editCarActions = findViewById<EditText>(R.id.editCarActions)
         editCarActions.setText(Prefs.carActionsRaw(this))
+        val editLogOnly = findViewById<EditText>(R.id.editLogOnly)
+        editLogOnly.setText(Prefs.logOnlyPkgsRaw(this))
         val editOverlayBrightness = findViewById<EditText>(R.id.editOverlayBrightness)
         editOverlayBrightness.setText(Prefs.overlayBrightness(this).toString())
         editVolEventPkg.setText(Prefs.volumeEventPkg(this))
@@ -288,6 +290,7 @@ class DevActivity : Activity() {
             Prefs.setScreenOffEventCls(this, editOffEventCls.text.toString().trim())
             editOverlayBrightness.text.toString().toIntOrNull()?.let { Prefs.setOverlayBrightness(this, it) }
             Prefs.setCarActions(this, editCarActions.text.toString())
+            Prefs.setLogOnlyPkgs(this, editLogOnly.text.toString())
             ScreenGuardService.instance?.reloadCarActions()
             Logx.d("進階觸發已更新：音量條=${editVolEventPkg.text}/${editVolEventCls.text} 關閉螢幕鈕=${editOffEventPkg.text}/${editOffEventCls.text} 設定鍵=${editVolKeys.text} 視窗=${editVolWindows.text}")
             toast("已儲存")

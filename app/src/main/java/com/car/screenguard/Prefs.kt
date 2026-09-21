@@ -34,6 +34,7 @@ object Prefs {
     private const val KEY_TAP_TOGGLE = "tap_toggle"
     private const val KEY_VOL_ZERO_TOGGLE = "vol_zero_toggle"
     private const val KEY_STATE_DOT = "state_dot"
+    private const val KEY_LOG_ONLY_PKGS = "log_only_pkgs"
     private const val KEY_CAR_ACTIONS = "car_actions"
     private const val DEFAULT_CAR_ACTIONS =
         "com.ts.intent.action.BACKLIGHT_OFF," +
@@ -148,6 +149,19 @@ object Prefs {
     /** 通知欄常駐開關（車機上音量手勢收不到訊號，這條路最可靠，預設開）。 */
     fun showNotification(c: Context) = sp(c).getBoolean(KEY_NOTIFICATION, true)
     fun setShowNotification(c: Context, v: Boolean) = sp(c).edit().putBoolean(KEY_NOTIFICATION, v).apply()
+
+    /**
+     * 只記錄這些套件的事件（逗號分隔，留空＝除自家以外全部）。
+     *
+     * 自家 App 永遠不記：記錄區的 TextView 一更新就發事件，
+     * 那又被記下來再更新一次，實測這個回授迴圈佔掉 96% 的記錄。
+     * 盯車機訊號時可以填 com.ts，畫面就只剩車機自家的事件。
+     */
+    fun logOnlyPkgs(c: Context): List<String> =
+        (sp(c).getString(KEY_LOG_ONLY_PKGS, "") ?: "")
+            .split(",").map { it.trim() }.filter { it.isNotEmpty() }
+    fun logOnlyPkgsRaw(c: Context): String = sp(c).getString(KEY_LOG_ONLY_PKGS, "") ?: ""
+    fun setLogOnlyPkgs(c: Context, v: String) = sp(c).edit().putString(KEY_LOG_ONLY_PKGS, v).apply()
 
     /**
      * 掌訊（com.ts）系列車機自家的狀態廣播，逗號分隔。

@@ -255,7 +255,7 @@ class ScreenGuardService : AccessibilityService() {
         // 一定要跳過自己：記錄區的 TextView 一更新就發 WINDOW_CONTENT_CHANGED，
         // 那又會被記下來再更新一次 —— 實測這個回授迴圈佔掉 96% 的記錄，
         // 幾秒就把緩衝沖光，真正要找的事件全被擠掉。
-        if (pkg != BuildInfo.PKG && Prefs.logEverything(this) && logAllThrottle(type, pkg)) {
+        if (Prefs.logEverything(this) && shouldLog(pkg) && logAllThrottle(type, pkg)) {
             val v = if (event.itemCount > 0) " 值=${event.currentItemIndex}/${event.itemCount}" else ""
             Logx.d(
                 "[全] ${AccessibilityEvent.eventTypeToString(type)} pkg=$pkg " +
@@ -286,7 +286,7 @@ class ScreenGuardService : AccessibilityService() {
             return
         }
 
-        if (Prefs.diagnostic(this)) {
+        if (Prefs.diagnostic(this) && shouldLog(pkg)) {
             val txt = runCatching { event.text?.joinToString(" ")?.take(40) }.getOrNull().orEmpty()
             val value = if (event.itemCount > 0) " 值=${event.currentItemIndex}/${event.itemCount}" else ""
             Logx.d("[診斷] 事件 ${AccessibilityEvent.eventTypeToString(type)} pkg=$pkg cls=${cls.substringAfterLast('.')}$value $txt")
@@ -363,13 +363,15 @@ class ScreenGuardService : AccessibilityService() {
         val list = runCatching {
             windows.mapNotNull { w ->
                 val p = runCatching { w.root?.packageName?.toString() }.getOrNull()
+                // 自家的視窗不列，否則每行都多一截雜訊
+                if (p == BuildInfo.PKG) return@mapNotNull null
                 val t = runCatching { w.title?.toString() }.getOrNull()
                 listOfNotNull(p, t).joinToString("/").ifEmpty { "type${w.type}" }
             }
         }.getOrNull() ?: return
 
         val desc = list.joinToString(" | ")
-        if (diag) Logx.d("[診斷] 視窗變化：$desc")
+        if (diag && desc.isNotEmpty()) Logx.d("[診斷] 視窗變化：$desc")
         if (pkgs.any { k -> desc.contains(k, true) }) onVolumeChanged("音量條視窗出現")
     }
 
@@ -557,6 +559,17 @@ class ScreenGuardService : AccessibilityService() {
     private val stopBlockingRunnable = Runnable {
         TouchWatcher.stopBlocking(applicationContext)
         tapCount = 0
+    }
+
+    /**
+     * 記錄過濾。自家 App 永遠不記 —— 記錄區的 TextView 一更新就發事件，
+     * 那又被記下來再更新一次，實測這個回授迴圈佔掉 96% 的記錄，
+     * 幾秒就把緩衝沖光，真正要找的事件全被擠掉。
+     */
+    private fun shouldLog(pkg: String): Boolean {
+        if (pkg == BuildInfo.PKG) return false
+        val only = Prefs.logOnlyPkgs(this)
+        return only.isEmpty() || only.any { pkg.contains(it, true) }
     }
 
     /** 全事件模式很吵，同型別＋同套件 250ms 內只留一筆。 */
