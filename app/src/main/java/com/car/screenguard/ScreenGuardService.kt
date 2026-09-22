@@ -157,6 +157,17 @@ class ScreenGuardService : AccessibilityService() {
         Logx.d("★★ 收到車機廣播：$action")
         val a = action.uppercase()
         when {
+            // black / bright 沒有 _OFF _ON 後綴，要單獨認
+            a.endsWith(".BLACK") ->
+                if (screenOn) {
+                    Logx.d("→ 依 $action 判定螢幕已關")
+                    onScreenOff()
+                }
+            a.endsWith(".BRIGHT") ->
+                if (!screenOn) {
+                    Logx.d("→ 依 $action 判定螢幕已亮")
+                    onScreenOn()
+                }
             a.endsWith("_OFF") || a.contains("SLEEP") ->
                 if (screenOn) {
                     Logx.d("→ 依 $action 判定螢幕已關")

@@ -53,7 +53,11 @@ object Prefs {
             "tx.action.ACC_OFF," +
             "tx.action.ACC_ON," +
             // 車機進深度休眠前通常會發這個
-            "com.android.internal.intent.action.REQUEST_SHUTDOWN"
+            "com.android.internal.intent.action.REQUEST_SHUTDOWN," +
+            // 掌訊 MainUI 的亮暗廣播，轉暗時若有發就是最直接的螢幕狀態訊號
+            "com.ts.mainui.black," +
+            "com.ts.mainui.BLACK," +
+            "com.ts.mainui.bright"
     private const val KEY_NOTIFICATION = "show_notification"
     private const val KEY_DROP_ON_NEW_WINDOW = "drop_on_new_window"
     private const val KEY_REVERSE_KEYS = "reverse_keys"

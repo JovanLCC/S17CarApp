@@ -320,6 +320,25 @@ class DevActivity : Activity() {
         editVolWindows.setText(Prefs.volumeWindowPkgsRaw(this))
         val editOffEventPkg = findViewById<EditText>(R.id.editOffEventPkg)
         val editOffEventCls = findViewById<EditText>(R.id.editOffEventCls)
+        // 候選廣播：點一下送一個，不必先填欄位
+        val candidates = findViewById<LinearLayout>(R.id.containerCandidates)
+        ScreenOff.CANDIDATES.forEach { cand ->
+            candidates.addView(Button(this).apply {
+                text = cand.label
+                textSize = 13f
+                isAllCaps = false
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+                setOnClickListener {
+                    Logx.d("【手動】送出 ${cand.action} ${cand.extras}")
+                    val r = ScreenOff.sendAction(this@DevActivity, cand.action, cand.extras)
+                    toast(r.msg)
+                }
+            })
+        }
+
         val editCarActions = findViewById<EditText>(R.id.editCarActions)
         editCarActions.setText(Prefs.carActionsRaw(this))
         val editLogOnly = findViewById<EditText>(R.id.editLogOnly)

@@ -59,6 +59,10 @@ object ScreenOff {
 
     /** 常見中國車機 ROM 的關螢幕廣播候選；不確定哪個對，所以做成逐一掃描。 */
     val PRESET_ACTIONS = listOf(
+        // 掌訊 MainUI 的亮暗廣播
+        "com.ts.mainui.black",
+        "com.ts.mainui.BLACK",
+
         // 鼎微 / tx 方案的自訂事件
         "tx.action.SCREEN_OFF",
         "tx.action.ACC_OFF",
@@ -231,13 +235,33 @@ object ScreenOff {
     fun canDrawOverlay(c: Context) =
         Build.VERSION.SDK_INT < 23 || Settings.canDrawOverlays(c)
 
+    /**
+     * 一個候選廣播。有些車機是用同一個 action 搭不同參數代表不同按鍵，
+     * 所以不能只送光禿禿的 action。
+     */
+    data class Candidate(val label: String, val action: String, val extras: Map<String, Int> = emptyMap())
+
+    /** ④ 進階裡那排按鈕：點一下就送一個，螢幕黑了就是它。 */
+    val CANDIDATES = listOf(
+        Candidate("① com.ts.mainui.black", "com.ts.mainui.black"),
+        Candidate("② com.ts.mainui.BLACK", "com.ts.mainui.BLACK"),
+        Candidate("③ com.ts.mainui.key  key=13", "com.ts.mainui.key", mapOf("key" to 13)),
+        Candidate("④ com.ts.mainui.key  keycode=40", "com.ts.mainui.key", mapOf("keycode" to 40)),
+        Candidate("⑤ tx.action.SCREEN_OFF", "tx.action.SCREEN_OFF"),
+        Candidate("⑥ com.ts.intent.action.BACKLIGHT_OFF", "com.ts.intent.action.BACKLIGHT_OFF"),
+        Candidate("♻ 亮螢幕：com.ts.mainui.bright", "com.ts.mainui.bright")
+    )
+
     /** 送出一個廣播 action，順便回報系統裡有沒有人註冊接收。 */
-    fun sendAction(c: Context, action: String): LockResult {
+    @JvmOverloads
+    fun sendAction(c: Context, action: String, extras: Map<String, Int> = emptyMap()): LockResult {
         val intent = Intent(action)
+        extras.forEach { (k, v) -> intent.putExtra(k, v) }
         val receivers = runCatching { c.packageManager.queryBroadcastReceivers(intent, 0).size }.getOrDefault(-1)
+        val extraDesc = if (extras.isEmpty()) "" else " " + extras.entries.joinToString { "${it.key}=${it.value}" }
         return runCatching {
             c.sendBroadcast(intent)
-            LockResult(true, "已送出 $action（靜態接收器 $receivers 個）")
+            LockResult(true, "已送出 $action$extraDesc（靜態接收器 $receivers 個）")
         }.getOrElse {
             LockResult(false, "$action 送出失敗：${it.javaClass.simpleName} ${it.message}")
         }

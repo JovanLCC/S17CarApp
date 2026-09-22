@@ -286,6 +286,20 @@
             android:inputType="textNoSuggestions"
             android:singleLine="true" />
 
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:text="候選關螢幕廣播（一顆一顆按，螢幕黑了就是它）" />
+
+        <LinearLayout
+            android:id="@+id/containerCandidates"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
+
         <EditText
             android:id="@+id/editLogOnly"
             android:layout_width="match_parent"
